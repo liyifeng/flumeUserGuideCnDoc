@@ -1,0 +1,16 @@
+@import url("classic.css");
+
+div.body {
+	width:1400px;
+	max-width: 1690px;
+}
+
+/* 提示框样式 */
+.admonition.hint {
+	border: 1px solid #a8c6f7;
+    background-color: #e6eef3;
+}
+
+.admonition.hint > .first.admonition-title {
+	color: #3884ff;
+}
