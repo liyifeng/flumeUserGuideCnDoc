@@ -15,205 +15,176 @@
 
 
 ======================================
-Flume 1.8.0 User Guide
+Flume 1.8.0 User Guide中文翻译版
 ======================================
 
-Introduction
+简介
 ============
 
-Overview
+概览
 --------
 
-Apache Flume is a distributed, reliable, and available system for efficiently
-collecting, aggregating and moving large amounts of log data from many
-different sources to a centralized data store.
+Apache Flume 是一个分布式、高可靠、高可用的用来收集、聚合、转移不同来源的大量日志数据到中央数据仓库的工具
 
-The use of Apache Flume is not only restricted to log data aggregation.
-Since data sources are customizable, Flume can be used to transport massive quantities
-of event data including but not limited to network traffic data, social-media-generated data,
-email messages and pretty much any data source possible.
+Apache Flume是Apache软件基金会（ASF）的顶级项目
 
-Apache Flume is a top level project at the Apache Software Foundation.
+目前有两个发行版本，0.9.x和1.x
 
-There are currently two release code lines available, versions 0.9.x and 1.x.
+0.9.x的文档请访问 `the Flume 0.9.x User Guide <http://archive.cloudera.com/cdh/3/flume/UserGuide/>`_ 。
 
-Documentation for the 0.9.x track is available at
-`the Flume 0.9.x User Guide <http://archive.cloudera.com/cdh/3/flume/UserGuide/>`_.
+本文档适用于1.4.x以上版本
 
-This documentation applies to the 1.4.x track.
+新用户我们建议使用性能更好、配置更灵活的1.x版本
 
-New and existing users are encouraged to use the 1.x releases so as to
-leverage the performance improvements and configuration flexibilities available
-in the latest architecture.
+.. hint:: 总结一下就是Flume是一个很NB的用来收集日志的工具，因为历史原因现在有两个版本0.9.x和1.x，从版本号也能看出来1.x版本新一些（通常软件系统有大的重构之后才会有大版本号的升级），所以新用户推荐使用1.x版本。
 
-
-System Requirements
+系统要求
 -------------------
 
-#. Java Runtime Environment - Java 1.8 or later
-#. Memory - Sufficient memory for configurations used by sources, channels or sinks
-#. Disk Space - Sufficient disk space for configurations used by channels or sinks
-#. Directory Permissions - Read/Write permissions for directories used by agent
+#. JAVA运行环境 - Java 1.8或更高版本
+#. 内存 - 足够的内存 用来配置Souuces、Channels和Sinks
+#. 硬盘空间 - 足够的硬盘用来配置Channels 和 Sinks
+#. 目录权限 - Agent用来读写目录的权限
 
-Architecture
+.. hint:: 唯一有用的就是第一个，Java1.8以上的运行环境，其余都是废话。我找出了最近几个Flume版本对JRE的依赖，如下表：
+
+==================================   ==========================================
+Flume版本                             依赖的JRE版本   
+==================================   ==========================================
+Flume 1.8.0                          Java1.8或更高版本         
+Flume 1.7.0                          Java1.7或更高版本      
+Flume 1.4.0、1.5.0、1.5.2、1.6.0      Java1.6或更高版本（建议使用1.7）
+==================================   ==========================================
+
+体系结构
 ------------
 
-Data flow model
+数据流模型
 ~~~~~~~~~~~~~~~
 
-A Flume event is defined as a unit of data flow having a byte payload and an
-optional set of string attributes. A Flume agent is a (JVM) process that hosts
-the components through which events flow from an external source to the next
-destination (hop).
+Event是Flume定义的一个数据流传输的最小单元。Agent就是一个Flume的实例，本质是一个JVM进程，该JVM进程控制Event数据流从外部日志生产者那里传输到目的地（或者是下一个Agent）。
+
+.. hint:: 学习Flume必须明白这几个术语，Event英文直译是事件，但是在Flume中表示数据传输的一个最小单位，其实就是指Flume传输的数据。参照下图可以看得出Agent就是Flume的一个部署实例，
+          一个完整的Agent中包含了三个组件Source、Channel和Sink，很明显Source是指数据的来源和方式，Channel是一个数据的缓冲池，Sink定义了数据输出的方式和目的地。  
 
 .. figure:: images/UserGuide_image00.png
    :align: center
    :alt: Agent component diagram
 
-A Flume source consumes events delivered to it by an external source like a web
-server. The external source sends events to Flume in a format that is
-recognized by the target Flume source. For example, an Avro Flume source can be
-used to receive Avro events from Avro clients or other Flume agents in the flow
-that send events from an Avro sink. A similar flow can be defined using
-a Thrift Flume Source to receive events from a Thrift Sink or a Flume
-Thrift Rpc Client or Thrift clients written in any language generated from
-the Flume thrift protocol.When a Flume source receives an event, it
-stores it into one or more channels. The channel is a passive store that keeps
-the event until it's consumed by a Flume sink. The file channel is one example
--- it is backed by the local filesystem. The sink removes the event
-from the channel and puts it into an external repository like HDFS (via Flume
-HDFS sink) or forwards it to the Flume source of the next Flume agent (next
-hop) in the flow. The source and sink within the given agent run asynchronously
-with the events staged in the channel.
+FlumeSource消耗由外部（如Web服务器）传递给它的Event。外部以Flume Source识别的格式向Flume发送Event。例如，Avro Flume Source可接收从Avro客户端（或其他FlumeSink）接收Avro Event。用Thrift Flume Source也可以实现类似的流程，接收的Event数据可以是任何语言编写的只要符合Thrift协议即可。
 
-Complex flows
+当FlumeSource接收Event时，它将其存储到一个或多个channel。该channel是一个被动存储器，可以保持Event直到它被Sink消耗。『文件channel』就是一个例子 - 它由本地文件系统支持。sink从channel中移除Event并将其放入外部存储库（如HDFS（通过Flume HDFS Sink））或将其转发到流中下一个Flume Agent（下一跳）的Flume Source。
+
+agent中的source和sink与channel存取Event是异步的。
+
+Flume的Source负责消费外部传递给它的数据（比如web服务器的日志）。外部的数据生产方以Flume Source识别的格式向Flume发送Event。
+
+
+复杂流
 ~~~~~~~~~~~~~
 
-Flume allows a user to build multi-hop flows where events travel through
-multiple agents before reaching the final destination. It also allows fan-in
-and fan-out flows, contextual routing and backup routes (fail-over) for failed
-hops.
+Flume可以设置多级Agent连接的方式传输Event数据。也支持扇入和扇出的部署方式，类似于负载均衡方式或多点同时备份的方式。
 
-Reliability
+.. hint:: 这里必须解释一下，第一句的意思是可以部署多个Agent组成一个数据流的传输链。第二句要知道扇入（多对一）和扇出（一对多）的概念，就是说Agent可以将数据流发到多个下级Agent，也可以从多个Agent发到一个Agent中。
+
+其实他们就是想告诉你，你可以根据自己的业务需求来任意组合传输日志的Agent实例，引用一张后面章节的图，这就是一个扇入方式的Flume部署方式，前三个Agent的数据都汇总到一个Agent4上，最后由Agent4统一存储到HDFS。
+
+.. figure:: images/UserGuide_image02.png
+   :align: center
+   :alt: 扇入、扇出展示
+
+可靠性
 ~~~~~~~~~~~
 
-The events are staged in a channel on each agent. The events are then delivered
-to the next agent or terminal repository (like HDFS) in the flow. The events
-are removed from a channel only after they are stored in the channel of next
-agent or in the terminal repository. This is a how the single-hop message
-delivery semantics in Flume provide end-to-end reliability of the flow.
+Event会在每个Agent的Channel上进行缓存，随后Event将会传递到流中的下一个Agent或目的地（比如HDFS）。只有成功地发送到下一个Agent或目的地后Event才会从Channel中删除。这一步保证了Event数据流在Flume Agent中传输时端到端的可靠性。
 
-Flume uses a transactional approach to guarantee the reliable delivery of the
-events. The sources and sinks encapsulate in a transaction the
-storage/retrieval, respectively, of the events placed in or provided by a
-transaction provided by the channel.  This ensures that the set of events are
-reliably passed from point to point in the flow. In the case of a multi-hop
-flow, the sink from the previous hop and the source from the next hop both have
-their transactions running to ensure that the data is safely stored in the
-channel of the next hop.
+.. hint:: 同学们这里是知识点啊（敲黑板）！Flume的这个channel最重要的功能是用来保证数据的可靠传输的。其实另外一个重要的功能也不可忽视，就是实现了数据流入和流出的异步执行。
 
-Recoverability
+Flume使用事务来保证Event的**可靠传输**。Source和Sink对channel提供的每个Event数据分别封装一个事务用于存储和恢复，这样就保证了数据流的集合在点对点之间的可靠传输。在多层架构的情况下，来自前一层的sink和来自下一层的Source
+都会有事务在运行以确保数据安全地传输到下一层的Channel中。
+
+
+可恢复性
 ~~~~~~~~~~~~~~
 
-The events are staged in the channel, which manages recovery from failure.
-Flume supports a durable file channel which is backed by the local file system.
-There's also a memory channel which simply stores the events in an in-memory
-queue, which is faster but any events still left in the memory channel when an
-agent process dies can't be recovered.
+Event数据会缓存在Channel中用来在失败的时候恢复出来。Flume支持保存在本地文件系统中的『文件channel』，也支持保存在内存中的『内存Channel』，『内存Channel』显然速度会更快，缺点是万一Agent挂掉『内存Channel』中缓存的数据也就丢失了。
 
-Setup
+安装
 =====
 
-Setting up an agent
+开始安装第一个agent
 -------------------
 
-Flume agent configuration is stored in a local configuration file.  This is a
-text file that follows the Java properties file format.
-Configurations for one or more agents can be specified in the same
-configuration file. The configuration file includes properties of each source,
-sink and channel in an agent and how they are wired together to form data
-flows.
+Flume agent的配置是在一个本地的配置文件中。这是一个遵循Java properties文件格式的文本文件。一个或多个agent配置可放在同一个配置文件里。配置文件包含agent的source，sink和channel的各个属性以及他们的数据流连接。
 
-Configuring individual components
+第一步：配置各个组件
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Each component (source, sink or channel) in the flow has a name, type, and set
-of properties that are specific to the type and instantiation. For example, an
-Avro source needs a hostname (or IP address) and a port number to receive data
-from. A memory channel can have max queue size ("capacity"), and an HDFS sink
-needs to know the file system URI, path to create files, frequency of file
-rotation ("hdfs.rollInterval") etc. All such attributes of a component needs to
-be set in the properties file of the hosting Flume agent.
+每个组件（source，sink或者channel）都有一个name，type和一系列的基于其type或实例的属性。例如，一个avro source需要有个hostname（或者ip地址）一个端口号来接收数据。一个内存channel有最大队列长度的属性（capacity），
+一个HDFS sink需要知晓文件系统的URI地址创建文件，文件访问频率（“hdfs.rollInterval”）等等。所有的这些组件属性都需要在Flume配置文件中设置。
 
-Wiring the pieces together
+第二步：连接各个组件
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The agent needs to know what individual components to load and how they are
-connected in order to constitute the flow. This is done by listing the names of
-each of the sources, sinks and channels in the agent, and then specifying the
-connecting channel for each sink and source. For example, an agent flows events
-from an Avro source called avroWeb to HDFS sink hdfs-cluster1 via a file
-channel called file-channel. The configuration file will contain names of these
-components and file-channel as a shared channel for both avroWeb source and
-hdfs-cluster1 sink.
+agent需要知道加载什么组件，以及这些组件在流中的连接顺序。通过列出在agent中的source，sink和channel名称，定义每个sink和source的channel来完成。
 
-Starting an agent
+.. hint:: 本来上面这段原文中描述了一个例子，可是并不直观，不如直接看下面hello world里面的配置例子。
+
+第三步：启动agent
 ~~~~~~~~~~~~~~~~~
 
-An agent is started using a shell script called flume-ng which is located in
-the bin directory of the Flume distribution. You need to specify the agent
-name, the config directory, and the config file on the command line::
+bin目录下的flume-ng是flume的启动脚本，启动时需要指定agent的名字、配置文件的目录和配置文件的名称。
+
+比如这样::
 
   $ bin/flume-ng agent -n $agent_name -c conf -f conf/flume-conf.properties.template
 
-Now the agent will start running source and sinks configured in the given
-properties file.
+到此，agent就会运行flume-conf.properties.template里面配置的source和sink了。
 
-A simple example
-~~~~~~~~~~~~~~~~
-Here, we give an example configuration file, describing a single-node Flume deployment.
-This configuration lets a user generate events and subsequently logs them to the console.
+一个简单的Hello World
+~~~~~~~~~~~~~~~~~~~~~~~
+这里给出了一个配置文件的例子，部署一个单节点的Flume，这个配置是让你自己生成Event数据然后Flume会把它们输出到console上。
+
+.. hint:: 下面的配置文件中，source使用的是NetCat TCP Source，这个Source在后面会有专门的一节来介绍，简单说就是监听本机上某个端口上接收到的TCP协议的消息，收到的每行内容都会解析封装成一个Event，然后发送到channel；
+          sink使用的是Logger Sink，这个sink可以把Event输出到控制台；
+          channel使用的是Memory Channel，是一个用内存最为Event缓冲的channel。
+          翻一翻本文档的下一章【配置】就能发现Flume内置了多种多样的source、sink和channel，后面会逐一介绍。
 
 .. code-block:: properties
 
-  # example.conf: A single-node Flume configuration
+  # example.conf: 一个单节点的 Flume 实例配置
 
-  # Name the components on this agent
-  a1.sources = r1
-  a1.sinks = k1
-  a1.channels = c1
+  # 配置agent a1各个组件的名称
+  a1.sources = r1    #agent a1 的source有一个，叫做r1
+  a1.sinks = k1      #agent a1 的sink也有一个，叫做k1
+  a1.channels = c1   #agent a1 的channel有一个，叫做c1
 
-  # Describe/configure the source
-  a1.sources.r1.type = netcat
-  a1.sources.r1.bind = localhost
-  a1.sources.r1.port = 44444
+  # 配置agent a1的source r1的属性
+  a1.sources.r1.type = netcat       #使用的是NetCat TCP Source，这个的是别名，Flume内置的一些组件都是有别名的，没有别名填全限定类名
+  a1.sources.r1.bind = localhost    #NetCat TCP Source监听的hostname，这个是本机
+  a1.sources.r1.port = 44444        #监听的端口
 
-  # Describe the sink
-  a1.sinks.k1.type = logger
+  # 配置agent a1的sink k1的属性
+  a1.sinks.k1.type = logger         # sink使用的是Logger Sink，这个配的也是别名
 
-  # Use a channel which buffers events in memory
-  a1.channels.c1.type = memory
+  # 配置agent a1的channel c1的属性，channel是用来缓冲Event数据的
+  a1.channels.c1.type = memory                #channel的类型是channel，使用内存来缓冲数据
   a1.channels.c1.capacity = 1000
   a1.channels.c1.transactionCapacity = 100
 
-  # Bind the source and sink to the channel
-  a1.sources.r1.channels = c1
-  a1.sinks.k1.channel = c1
+  # 把source和sink绑定到channel上
+  a1.sources.r1.channels = c1       #与source r1绑定的channel有一个，叫做c1
+  a1.sinks.k1.channel = c1          #与sink k1绑定的channel有一个，叫做c1
 
-This configuration defines a single agent named a1. a1 has a source that listens for data on port 44444, a channel
-that buffers event data in memory, and a sink that logs event data to the console. The configuration file names the
-various components, then describes their types and configuration parameters. A given configuration file might define
-several named agents; when a given Flume process is launched a flag is passed telling it which named agent to manifest.
+配置文件里面的注释已经写的很明白了，这个配置文件定义了一个agent叫做a1，a1有一个source监听本机44444端口上接收到的数据、一个缓冲数据的channel还有一个把event数据输出到控制台的sink。这个配置文件给各个组件命名，并且设置了它们的类型和其他属性。通常一个配置文件里面可能有多个agent，当启动flume时候通常会传一个agent名字来做为程序运行的标记。
 
-Given this configuration file, we can start Flume as follows::
+用下面的命令加载这个配置文件启动Flume::
 
   $ bin/flume-ng agent --conf conf --conf-file example.conf --name a1 -Dflume.root.logger=INFO,console
 
-Note that in a full deployment we would typically include one more option: ``--conf=<conf-dir>``.
-The ``<conf-dir>`` directory would include a shell script *flume-env.sh* and potentially a log4j properties file.
-In this example, we pass a Java option to force Flume to log to the console and we go without a custom environment script.
+.. warning:: 请注意，在完整的部署中通常会包含 --conf=<conf-dir>这个参数，<conf-dir>目录里面包含了flume-env.sh和一个log4j properties文件，在这个例子里面，我们强制Flume把日志输出到了控制台，运行的时候没有任何自定义的环境脚本。
 
-From a separate terminal, we can then telnet port 44444 and send Flume an event:
+测试一下我们的这个例子吧，打开一个新的终端窗口，用telnet命令连接本机的44444端口，然后输入Hello world！后按回车，这时收到服务器的响应[OK]（这是NetCat TCP Source默认给返回的），说明一行数据已经成功发送。
 
 .. code-block:: properties
 
@@ -224,7 +195,7 @@ From a separate terminal, we can then telnet port 44444 and send Flume an event:
   Hello world! <ENTER>
   OK
 
-The original Flume terminal will output the event in a log message.
+Flume的终端里面会以log的形式输出这个收到的Event内容。
 
 .. code-block:: properties
 
@@ -232,11 +203,13 @@ The original Flume terminal will output the event in a log message.
   12/06/19 15:32:19 INFO source.NetcatSource: Created serverSocket:sun.nio.ch.ServerSocketChannelImpl[/127.0.0.1:44444]
   12/06/19 15:32:34 INFO sink.LoggerSink: Event: { headers:{} body: 48 65 6C 6C 6F 20 77 6F 72 6C 64 21 0D          Hello world!. }
 
-Congratulations - you've successfully configured and deployed a Flume agent! Subsequent sections cover agent configuration in much more detail.
+恭喜你！到此你已经成功配置并运行了一个Flume agent，接下来的章节我们会更多关于agent的配置。
 
-Using environment variables in configuration files
+在配置文件里面自定义环境变量
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Flume has the ability to substitute environment variables in the configuration. For example::
+Flume可以替换配置文件中的环境变量，例如：
+
+.. code-block:: none
 
   a1.sources = r1
   a1.sources.r1.type = netcat
@@ -244,52 +217,42 @@ Flume has the ability to substitute environment variables in the configuration. 
   a1.sources.r1.port = ${NC_PORT}
   a1.sources.r1.channels = c1
 
-NB: it currently works for values only, not for keys. (Ie. only on the "right side" of the `=` mark of the config lines.)
+.. warning:: 注意了，目前只允许在value里面使用环境变量（也就是说只能在等号右边用，左边不行）
 
-This can be enabled via Java system properties on agent invocation by setting `propertiesImplementation = org.apache.flume.node.EnvVarResolverProperties`.
+启动agent时候加上propertiesImplementation = org.apache.flume.node.EnvVarResolverProperties就可以了。
 
-For example::
+例如：
+
+.. code-block:: none
+
   $ NC_PORT=44444 bin/flume-ng agent --conf conf --conf-file example.conf --name a1 -Dflume.root.logger=INFO,console -DpropertiesImplementation=org.apache.flume.node.EnvVarResolverProperties
 
-Note the above is just an example, environment variables can be configured in other ways, including being set in `conf/flume-env.sh`.
+.. warning:: 上面仅仅是个例子，环境变量可以用其他方式配置，比如在conf/flume-env.sh里面设置。
 
-Logging raw data
-~~~~~~~~~~~~~~~~
+输出原始数据到日志
+~~~~~~~~~~~~~~~~~~
 
+通常情况下在生产环境下记录数据流中的原始数据到日志是不可取的行为，因为可能泄露敏感信息或者是安全相关的配置，比如秘钥之类的。默认情况下Flume不会想往日志中输出这些信息，如果Flume出了异常，Flume会尝试提供调试错误的线索。
 
-Logging the raw stream of data flowing through the ingest pipeline is not desired behaviour in
-many production environments because this may result in leaking sensitive data or security related
-configurations, such as secret keys, to Flume log files.
-By default, Flume will not log such information. On the other hand, if the data pipeline is broken,
-Flume will attempt to provide clues for debugging the problem.
+有一个办法能把原始的数据流都输出到日志，就是配置一个额外的『内存channel』和Logger Sink，Logger Sink可以输出所有的event数据到Flume的日志，然而这个方法并不是适用所有情况。
 
-One way to debug problems with event pipelines is to set up an additional `Memory Channel`_
-connected to a `Logger Sink`_, which will output all event data to the Flume logs.
-In some situations, however, this approach is insufficient.
+为了记录event和配置相关的数据，必须设置一些java系统属性在log4j配置文件中。
 
-In order to enable logging of event- and configuration-related data, some Java system properties
-must be set in addition to log4j properties.
+为了记录配置相关的日志，可以通过-Dorg.apache.flume.log.printconfig=true来开启，可以在启动脚本或者flume-env.sh的JAVA_OPTS来配置这个属性。
 
-To enable configuration-related logging, set the Java system property
-``-Dorg.apache.flume.log.printconfig=true``. This can either be passed on the command line or by
-setting this in the ``JAVA_OPTS`` variable in *flume-env.sh*.
+通过设置-Dorg.apache.flume.log.rawdata=true来开启记录原始日志，对于大多数组件log4j的日志级别需要设置到DEBUG或者TRACE才能保证日志能输出到Flume的日志里面。
 
-To enable data logging, set the Java system property ``-Dorg.apache.flume.log.rawdata=true``
-in the same way described above. For most components, the log4j logging level must also be set to
-DEBUG or TRACE to make event-specific logging appear in the Flume logs.
+下面这个是开启记录event原始数据，并且设置logj的日志级别为DEBUG的输出到console的脚本
 
-Here is an example of enabling both configuration logging and raw data logging while also
-setting the Log4j loglevel to DEBUG for console output::
+.. code-block:: none
 
   $ bin/flume-ng agent --conf conf --conf-file example.conf --name a1 -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true
 
 
-Zookeeper based Configuration
+基于Zookeeper的配置
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Flume supports Agent configurations via Zookeeper. *This is an experimental feature.* The configuration file needs to be uploaded
-in the Zookeeper, under a configurable prefix. The configuration file is stored in Zookeeper Node data.
-Following is how the Zookeeper Node tree would look like for agents a1 and a2
+Flume支持使用Zookeeper配置agent。**这是个实验性的功能**。配置文件需要上传到zookeeper中，在一个可配置前缀下。配置文件存储在Zookeeper节点数据里。下面是a1 和 a2 agent在Zookeeper节点树的配置情况。
 
 .. code-block:: properties
 
@@ -297,51 +260,40 @@ Following is how the Zookeeper Node tree would look like for agents a1 and a2
    |- /a1 [Agent config file]
    |- /a2 [Agent config file]
 
-Once the configuration file is uploaded, start the agent with following options
+上传好了配置文件后，可以使用下面的脚本参数进行启动：
+
+.. code-block:: none
 
   $ bin/flume-ng agent --conf conf -z zkhost:2181,zkhost1:2181 -p /flume --name a1 -Dflume.root.logger=INFO,console
 
 ==================   ================  =========================================================================
-Argument Name        Default           Description
+参数名                默认值            描述
 ==================   ================  =========================================================================
-**z**                --                Zookeeper connection string. Comma separated list of hostname:port
-**p**                /flume            Base Path in Zookeeper to store Agent configurations
+**z**                --                Zookeeper的连接，hostname:port格式 ，多个用逗号分开
+**p**                /flume            Zookeeper中存储agent配置的目录
 ==================   ================  =========================================================================
 
-Installing third-party plugins
+安装第三方插件
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Flume has a fully plugin-based architecture. While Flume ships with many
-out-of-the-box sources, channels, sinks, serializers, and the like, many
-implementations exist which ship separately from Flume.
+Flume有完整的插件架构。尽管Flume已经提供了很多现成的source、channel、sink、serializer可用。
 
-While it has always been possible to include custom Flume components by
-adding their jars to the FLUME_CLASSPATH variable in the flume-env.sh file,
-Flume now supports a special directory called ``plugins.d`` which automatically
-picks up plugins that are packaged in a specific format. This allows for easier
-management of plugin packaging issues as well as simpler debugging and
-troubleshooting of several classes of issues, especially library dependency
-conflicts.
+然而通过把自定义组件的jar包添加到flume-env.sh文件的FLUME_CLASSPATH 变量中使用自定义的组件也是常有的事。现在Flume支持在一个特定的文件夹自动获取组件，这个文件夹就是pluguins.d。这样使得插件的包管理、调试、错误定位更加容易方便，尤其是依赖包的冲突处理。
 
-The plugins.d directory
+plugins.d文件夹
 '''''''''''''''''''''''
+``plugins.d`` 文件夹的所在位置是 ``$FLUME_HOME/plugins.d`` ，在启动时 ``flume-ng`` 会启动脚本检查这个文件夹把符合格式的插件添加到系统中。
 
-The ``plugins.d`` directory is located at ``$FLUME_HOME/plugins.d``. At startup
-time, the ``flume-ng`` start script looks in the ``plugins.d`` directory for
-plugins that conform to the below format and includes them in proper paths when
-starting up ``java``.
-
-Directory layout for plugins
+插件的目录结构
 ''''''''''''''''''''''''''''
 
-Each plugin (subdirectory) within ``plugins.d`` can have up to three
-sub-directories:
+每个插件（也就是 ``plugins.d`` 下的子文件夹）都可以有三个子文件夹：
 
-#. lib - the plugin's jar(s)
-#. libext - the plugin's dependency jar(s)
-#. native - any required native libraries, such as ``.so`` files
+#. lib - 插件自己的jar包
+#. libext - 插件依赖的其他所有jar包
+#. native - 依赖的一些本地库文件，比如 ``.so`` 文件
 
-Example of two plugins within the plugins.d directory:
+下面是两个插件的目录结构例子：
 
 .. code-block:: none
 
@@ -353,95 +305,88 @@ Example of two plugins within the plugins.d directory:
   plugins.d/custom-source-2/lib/custom.jar
   plugins.d/custom-source-2/native/gettext.so
 
-Data ingestion
+数据获取
 --------------
 
-Flume supports a number of mechanisms to ingest data from external sources.
+Flume支持多种从外部获取数据的方式。
+
+.. hint:: 实际上就是说Flume有各种各样的Source从外部获取event数据。下面按照分类进行简单的介绍，更详细的介绍会在配置一章开启。
 
 RPC
 ~~~
 
-An Avro client included in the Flume distribution can send a given file to
-Flume Avro source using avro RPC mechanism::
+Flume发行版中包含的Avro客户端可以使用avro RPC机制将给定文件发送到Flume Avro Source：
+
+.. code-block:: none
 
   $ bin/flume-ng avro-client -H localhost -p 41414 -F /usr/logs/log.10
 
-The above command will send the contents of /usr/logs/log.10 to to the Flume
-source listening on that ports.
+上面的命令会将/usr/logs/log.10的内容发送到监听该端口的Flume Source。
 
-Executing commands
+执行命令
 ~~~~~~~~~~~~~~~~~~
 
-There's an exec source that executes a given command and consumes the output. A
-single 'line' of output ie. text followed by carriage return ('\\r') or line
-feed ('\\n') or both together.
+Flume提供了一个 `Exec Source` ，通过执行系统命令来获得持续的数据流，按照\\r或者\\n或者\\r\\n（\\n\\r）来划分数据行，然后把每行解析成为一个event。
 
-Network streams
+网络流
 ~~~~~~~~~~~~~~~
 
-Flume supports the following mechanisms to read data from popular log stream
-types, such as:
+Flume支持以下比较流行的日志类型读取：
 
 #. Avro
 #. Thrift
 #. Syslog
 #. Netcat
 
-Setting multi-agent flow
+.. hint:: 个人认为除了前面的rpc、系统命令、网络流，还有一类很重要的Source就是从文件获取数据，比如 `Spooling Directory Source`_ 和 `Taildir Source`_ ，可以用它们来监控应用服务产生的日志并进行收集。
+
+多agent的复杂流
 ------------------------
+
+.. hint:: 这一小节介绍了几种典型的Flume的多agent（图一图二）以及一个agent中多路输出（图三）等部署方式。
 
 .. figure:: images/UserGuide_image03.png
    :align: center
    :alt: Two agents communicating over Avro RPC
 
-In order to flow the data across multiple agents or hops, the sink of the
-previous agent and source of the current hop need to be avro type with the sink
-pointing to the hostname (or IP address) and port of the source.
+这个例子里面为了能让数据流在多个agent之间传输，前一个agent的sink必须和后一个agent的source都需要设置为avro类型并且指向相同的hostname（或者IP）和端口。
 
-Consolidation
+组合
 -------------
 
-A very common scenario in log collection is a large number of log producing
-clients sending data to a few consumer agents that are attached to the storage
-subsystem. For example, logs collected from hundreds of web servers sent to a
-dozen of agents that write to HDFS cluster.
+日志收集场景中比较常见的是数百个日志生产者发送数据到几个日志消费者agent上，然后消费者agent负责把数据发送到存储系统。例如从数百个web服务器收集的日志发送到十几个agent上，然后由十几个agent写入到HDFS集群。
 
 .. figure:: images/UserGuide_image02.png
    :align: center
    :alt: A fan-in flow using Avro RPC to consolidate events in one place
 
-This can be achieved in Flume by configuring a number of first tier agents with
-an avro sink, all pointing to an avro source of single agent (Again you could
-use the thrift sources/sinks/clients in such a scenario). This source
-on the second tier agent consolidates the received events into a single
-channel which is consumed by a sink to its final destination.
+可以通过使用 Avro Sink 配置多个第一层 agent 在Flume上，所有这些 agent 都指向同一个 Avro Source（同样你也可以使用 thrift 协议的 Source 和 Sink 来代替）。第二层 agent 上的 Source 将 event 合并到一个 channel 中，该
+channel 最终由 Sink 消费发送到最终目的地。
 
-Multiplexing the flow
+多路复用流
 ---------------------
 
-Flume supports multiplexing the event flow to one or more destinations. This is
-achieved by defining a flow multiplexer that can replicate or selectively route
-an event to one or more channels.
+Flume支持多路复用数据流到一个或多个目的地。这是通过使用一个流的[多路复用器]（multiplexer ）来实现的，它可以复制或者选择数据流到一个或多个channel上。
+
+.. hint:: 很容易理解，复制就是每个channel的数据都是完全一样的，都是完整的数据流集合。选择就是通过自定义一个分配机制，把数据流拆分到多个channel上。
 
 .. figure:: images/UserGuide_image01.png
    :align: center
    :alt: A fan-out flow using a (multiplexing) channel selector
 
-The above example shows a source from agent "foo" fanning out the flow to three
-different channels. This fan out can be replicating or multiplexing. In case of
-replicating flow, each event is sent to all three channels. For the
-multiplexing case, an event is delivered to a subset of available channels when
-an event's attribute matches a preconfigured value. For example, if an event
-attribute called "txnType" is set to "customer", then it should go to channel1
-and channel3, if it's "vendor" then it should go to channel2, otherwise
-channel3. The mapping can be set in the agent's configuration file.
+上图的例子展示了从Agent foo扇出流到多个channel中。这种扇出的机制可以是复制或者选择。当配置为复制的时候，每个event都被发送到3个channel上。当配置为选择的时候，当event的某个属性与配置的值相匹配时会被发送到指定的channel。
+例如event的属性txnType是customer时，event被发送到channel1和channel3，如果txnType的值是vendor时，event被发送到channel2，其他值一律发送到channel3，这种规则是可以通过配置来实现的。
 
-Configuration
+.. hint:: 好了做一个总结吧，本章内容是这个文档最重要的一章，让你知道Flume都有哪些组件、配置方式、启动方式、使用第三方插件、以及一些实际使用中的复杂流的部署方案等等。下一章开始逐个介绍每一个组件。
+
+配置
 =============
 
-As mentioned in the earlier section, Flume agent configuration is read from a
-file that resembles a Java property file format with hierarchical property
-settings.
+如前面部分所述，Flume agent程序配置是从类似于具有分层属性设置的Java属性文件格式的文件中读取的。
+
+.. hint:: 这一章开始详细介绍Flume的source、sink、channel三大组件和其他几个组件channel selector、sink processor、serializer、interceptor的配置、使用方法和各自的适用范围。
+          如果硬要翻译这些组件的话，三大组件分别是数据源（source）、数据目的地（sink）和缓冲池（channel）。其他几个分别是event多路分发的channel选择器（channel selector），接收器组逻辑处理器（sink processor）、序列化器（serializer）、拦截器（interceptor）。
+
 
 Defining the flow
 -----------------
@@ -755,34 +700,32 @@ Flume Sources
 Avro Source
 ~~~~~~~~~~~
 
-Listens on Avro port and receives events from external Avro client streams.
-When paired with the built-in Avro Sink on another (previous hop) Flume agent,
-it can create tiered collection topologies.
-Required properties are in **bold**.
+Avro Source监听Avro端口接收从外部Avro客户端发送来的数据流。如果与上一层的Avro Sink配合使用就组成了一个分层的拓扑结构。
+必需的参数已用 **粗体** 标明。      
 
-==================   ================  ===================================================
-Property Name        Default           Description
-==================   ================  ===================================================
-**channels**         --
-**type**             --                The component type name, needs to be ``avro``
-**bind**             --                hostname or IP address to listen on
-**port**             --                Port # to bind to
-threads              --                Maximum number of worker threads to spawn
-selector.type
-selector.*
-interceptors         --                Space-separated list of interceptors
-interceptors.*
-compression-type     none              This can be "none" or "deflate".  The compression-type must match the compression-type of matching AvroSource
-ssl                  false             Set this to true to enable SSL encryption. You must also specify a "keystore" and a "keystore-password".
-keystore             --                This is the path to a Java keystore file. Required for SSL.
-keystore-password    --                The password for the Java keystore. Required for SSL.
-keystore-type        JKS               The type of the Java keystore. This can be "JKS" or "PKCS12".
-exclude-protocols    SSLv3             Space-separated list of SSL/TLS protocols to exclude. SSLv3 will always be excluded in addition to the protocols specified.
-ipFilter             false             Set this to true to enable ipFiltering for netty
-ipFilterRules        --                Define N netty ipFilter pattern rules with this config.
-==================   ================  ===================================================
+==================   ================  ============================================================================
+属性                  默认值            解释
+==================   ================  ============================================================================
+**channels**         --                与Source绑定的channel，多个用空格分开
+**type**             --                组件名，这个是： ``avro``
+**bind**             --                监听的服务器名（hostname）或者ip
+**port**             --                监听的端口
+threads              --                生成的最大工作线程数量
+selector.type                          可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                             channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors         --                该source所使用的拦截器，多个用空格分开
+interceptors.*                         拦截器的相关属性
+compression-type     none              可选值：none 或 deflate。这个类型必须跟Avro Source相匹配
+ssl                  false             设置为true可启用SSL加密，如果为true必须指定下面的keystore和keystore-password。
+keystore             --                SSL加密使用的Java keystore文件路径
+keystore-password    --                Java keystore的密码
+keystore-type        JKS               Java keystore的类型. 可选值有 “JKS” 、 “PKCS12”。
+exclude-protocols    SSLv3             指定不支持的协议，多个用空格分开，SSLv3不管是否配置都会被强制排除
+ipFilter             false             设置为true可启用ip过滤（netty方式的avro）
+ipFilterRules        --                netty ipFilter的配置（参考下面的ipFilterRules详细介绍和例子）
+==================   ================  ============================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -793,55 +736,60 @@ Example for agent named a1:
   a1.sources.r1.bind = 0.0.0.0
   a1.sources.r1.port = 4141
 
-Example of ipFilterRules
+**ipFilterRules格式详解**
 
-ipFilterRules defines N netty ipFilters separated by a comma a pattern rule must be in this format.
+ipFilterRules 可以配置一些允许或者禁止的ip规则，它的配置格式是：allow/deny:ip/name:pattern
 
-<'allow' or deny>:<'ip' or 'name' for computer name>:<pattern>
-or
-allow/deny:ip/name:pattern
+第一部分只能是[allow]或[deny]两个词其中一个，第二部分是[ip]或[name]的其中一个，第三部分是正则，每个部分中间用":"分隔。
 
-example: ipFilterRules=allow:ip:127.*,allow:name:localhost,deny:ip:*
+比如可以配置成下面这样：
 
-Note that the first rule to match will apply as the example below shows from a client on the localhost
+.. code-block:: properties
 
-This will Allow the client on localhost be deny clients from any other ip "allow:name:localhost,deny:ip:*"
-This will deny the client on localhost be allow clients from any other ip "deny:name:localhost,allow:ip:*"
+  ipFilterRules=allow:ip:127.*,allow:name:localhost,deny:ip:*
+
+注意，最先匹配到的规则会优先生效，看下面关于localhost的两个配置的不同
+
+.. code-block:: properties
+
+  #只允许localhost的客户端连接，禁止其他所有的连接
+  ipFilterRules=allow:name:localhost,deny:ip:
+
+  #允许除了localhost以外的任意的客户端连接
+  ipFilterRules=deny:name:localhost,allow:ip:
+
 
 Thrift Source
 ~~~~~~~~~~~~~
 
-Listens on Thrift port and receives events from external Thrift client streams.
-When paired with the built-in ThriftSink on another (previous hop) Flume agent,
-it can create tiered collection topologies.
-Thrift source can be configured to start in secure mode by enabling kerberos authentication.
-agent-principal and agent-keytab are the properties used by the
-Thrift source to authenticate to the kerberos KDC.
-Required properties are in **bold**.
+监听Thrift 端口，从外部的Thrift客户端接收数据流。如果从上一层的Flume agent的Thrift Sink串联后就创建了一个多层的Flume架构（同Avro Source一样，只不过是协议不同而已）。Thrift source可以通过配置让它以安全模式（kerberos authentication）运行，具体的配置看下表。
+必需的参数已用 **粗体** 标明。 
 
-==================   ===========  ===================================================
-Property Name        Default      Description
-==================   ===========  ===================================================
-**channels**         --
-**type**             --           The component type name, needs to be ``thrift``
-**bind**             --           hostname or IP address to listen on
-**port**             --           Port # to bind to
-threads              --           Maximum number of worker threads to spawn
-selector.type
-selector.*
-interceptors         --           Space separated list of interceptors
-interceptors.*
-ssl                  false        Set this to true to enable SSL encryption. You must also specify a "keystore" and a "keystore-password".
-keystore             --           This is the path to a Java keystore file. Required for SSL.
-keystore-password    --           The password for the Java keystore. Required for SSL.
-keystore-type        JKS          The type of the Java keystore. This can be "JKS" or "PKCS12".
-exclude-protocols    SSLv3        Space-separated list of SSL/TLS protocols to exclude. SSLv3 will always be excluded in addition to the protocols specified.
-kerberos             false        Set to true to enable kerberos authentication. In kerberos mode, agent-principal and agent-keytab  are required for successful authentication. The Thrift source in secure mode, will accept connections only from Thrift clients that have kerberos enabled and are successfully authenticated to the kerberos KDC.
-agent-principal      --           The kerberos principal used by the Thrift Source to authenticate to the kerberos KDC.
-agent-keytab         —-           The keytab location used by the Thrift Source in combination with the agent-principal to authenticate to the kerberos KDC.
-==================   ===========  ===================================================
+.. hint:: 同Avro Source十分类似，不同的是支持了 kerberos 认证。     
 
-Example for agent named a1:
+==================   ==============    ===================================================
+属性                  默认值            解释
+==================   ==============    ===================================================
+**channels**         --                与Source绑定的channel，多个用空格分开
+**type**             --                组件名，这个是： ``thrift``
+**bind**             --                监听的 hostname 或 IP 地址
+**port**             --                监听的端口
+threads              --                生成的最大工作线程数量
+selector.type                          可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                             channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors         --                该source所使用的拦截器，多个用空格分开
+interceptors.*                         拦截器的相关属性
+ssl                  false             设置为true可启用SSL加密，如果为true必须指定下面的keystore和keystore-password。
+keystore             --                SSL加密使用的Java keystore文件路径
+keystore-password    --                Java keystore的密码
+keystore-type        JKS               Java keystore的类型. 可选值有 “JKS” 、 “PKCS12”。
+exclude-protocols    SSLv3             排除支持的协议，多个用空格分开，SSLv3不管是否配置都会被强制排除
+kerberos             false             设置为true，开启kerberos 身份验证。在kerberos模式下，成功进行身份验证需要agent-principal和agent-keytab。 安全模式下的Thrift仅接受来自已启用kerberos且已成功通过kerberos KDC验证的Thrift客户端的连接。
+agent-principal      --                指定Thrift Source使用的kerberos主体用于从kerberos KDC进行身份验证。
+agent-keytab         —-                Thrift Source与agent主体结合使用的keytab文件位置，用于对kerberos KDC进行身份验证。
+==================   ==============    ===================================================
+
+配置范例：   
 
 .. code-block:: properties
 
@@ -855,54 +803,36 @@ Example for agent named a1:
 Exec Source
 ~~~~~~~~~~~
 
-Exec source runs a given Unix command on start-up and expects that process to
-continuously produce data on standard out (stderr is simply discarded, unless
-property logStdErr is set to true). If the process exits for any reason, the source also exits and
-will produce no further data. This means configurations such as ``cat [named pipe]``
-or ``tail -F [file]`` are going to produce the desired results where as ``date``
-will probably not - the former two commands produce streams of data where as the
-latter produces a single event and exits.
+这个source在启动时运行给定的Unix命令，并期望该进程在标准输出上连续生成数据（stderr 信息会被丢弃，除非属性logStdErr设置为true）。 如果进程因任何原因退出，则source也会退出并且不会继续生成数据。 综上来看cat [named pipe]或tail -F [file]这两个命令符合要求可以产生所需的结果，而date这种命令可能不会，因为前两个命令（tail 和 cat）能产生持续的数据流，而后者（date这种命令）只会产生单个event并退出。
 
-Required properties are in **bold**.
+.. hint:: cat [named pipe]和tail -F [file]都能持续地输出内容，那些不能持续输出内容的命令不可以。这里注意一下cat后面接的内容是命名管道（named pipe），不是文件。
 
-===============  ===========  ==============================================================
-Property Name    Default      Description
-===============  ===========  ==============================================================
-**channels**     --
-**type**         --           The component type name, needs to be ``exec``
-**command**      --           The command to execute
-shell            --           A shell invocation used to run the command.  e.g. /bin/sh -c. Required only for commands relying on shell features like wildcards, back ticks, pipes etc.
-restartThrottle  10000        Amount of time (in millis) to wait before attempting a restart
-restart          false        Whether the executed cmd should be restarted if it dies
-logStdErr        false        Whether the command's stderr should be logged
-batchSize        20           The max number of lines to read and send to the channel at a time
-batchTimeout     3000         Amount of time (in milliseconds) to wait, if the buffer size was not reached, before data is pushed downstream
-selector.type    replicating  replicating or multiplexing
-selector.*                    Depends on the selector.type value
-interceptors     --           Space-separated list of interceptors
-interceptors.*
-===============  ===========  ==============================================================
+必需的参数已用 **粗体** 标明。      
 
+===============  ===========  ============================================================================================
+属性              默认值       解释
+===============  ===========  ============================================================================================
+**channels**     --           与Source绑定的channel，多个用空格分开
+**type**         --           组件名，这个是： ``exec``
+**command**      --           所使用的系统命令，一般是cat  或者tail
+shell            --           设置用于运行命令的shell。 例如 / bin / sh -c。 仅适用于依赖shell功能的命令，如通配符、后退标记、管道等。
+restartThrottle  10000        尝试重新启动之前等待的时间（单位：毫秒）
+restart          false        如果执行命令线程挂掉，是否重启
+logStdErr        false        是否会记录命令的stderr内容
+batchSize        20           读取并向channel发送数据时单次发送的最大数量
+batchTimeout     3000         向下游推送数据时，单次批量发送event的最大等待时间（单位：毫秒），如果等待了batchTimeout毫秒后未达到一次批量发送数量，则仍然执行发送操作。
+selector.type    replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                    channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors     --           该source所使用的拦截器，多个用空格分开
+interceptors.*                拦截器相关的属性配置
+===============  ===========  ============================================================================================
 
-.. warning:: The problem with ExecSource and other asynchronous sources is that the
-             source can not guarantee that if there is a failure to put the event
-             into the Channel the client knows about it. In such cases, the data will
-             be lost. As a for instance, one of the most commonly requested features
-             is the ``tail -F [file]``-like use case where an application writes
-             to a log file on disk and Flume tails the file, sending each line as an
-             event. While this is possible, there's an obvious problem; what happens
-             if the channel fills up and Flume can't send an event? Flume has no way
-             of indicating to the application writing the log file that it needs to
-             retain the log or that the event hasn't been sent, for some reason. If
-             this doesn't make sense, you need only know this: Your application can
-             never guarantee data has been received when using a unidirectional
-             asynchronous interface such as ExecSource! As an extension of this
-             warning - and to be completely clear - there is absolutely zero guarantee
-             of event delivery when using this source. For stronger reliability
-             guarantees, consider the Spooling Directory Source, Taildir Source or direct integration
-             with Flume via the SDK.
+.. warning:: ExecSource相比于其他异步source的问题在于，如果无法将event放入Channel中，ExecSource无法保证客户端知道它。在这种情况下数据会丢失。例如，最常见的用法是用tail -F [file]这种，应用程序负责向磁盘写入日志文件，
+Flume 会用tail命令从日志文件尾部读取，将每行作为一个event发送。这里有一个明显的问题：如果channel满了然后无法继续发送event，会发生什么？由于种种原因，Flume无法向输出日志文件的应用程序指示它需要保留日志或某些event尚未发送。
+总之你需要知道：当使用ExecSource等单向异步接口时，您的应用程序永远无法保证数据已经被成功接收！作为此警告的延伸，此source传递event时没有交付保证。为了获得更强的可靠性保证，请考虑使用Spooling Directory Source，Taildir Source
+或通过SDK直接与Flume集成。
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -912,12 +842,8 @@ Example for agent named a1:
   a1.sources.r1.command = tail -F /var/log/secure
   a1.sources.r1.channels = c1
 
-The 'shell' config is used to invoke the 'command' through a command shell (such as Bash
-or Powershell). The 'command' is passed as an argument to 'shell' for execution. This
-allows the 'command' to use features from the shell such as wildcards, back ticks, pipes,
-loops, conditionals etc. In the absence of the 'shell' config, the 'command' will be
-invoked directly.  Common values for 'shell' :  '/bin/sh -c', '/bin/ksh -c',
-'cmd /c',  'powershell -Command', etc.
+上面的 shell 属性是用来配置执行命令的shell（比如Bash或者Powershell）。command 会作为参数传递给 shell 执行，这使得command可以使用shell中的特性，例如通配符、后退标记、管道、循环、条件等。如果没有 shell 配置，
+将直接调用 command 配置的命令。shell 通常配置的值有：“/bin/sh -c”、“/bin/ksh -c”、“cmd /c”、“powershell -Command”等。
 
 .. code-block:: properties
 
@@ -928,62 +854,47 @@ invoked directly.  Common values for 'shell' :  '/bin/sh -c', '/bin/ksh -c',
 JMS Source
 ~~~~~~~~~~~
 
-JMS Source reads messages from a JMS destination such as a queue or topic. Being a JMS
-application it should work with any JMS provider but has only been tested with ActiveMQ.
-The JMS source provides configurable batch size, message selector, user/pass, and message
-to flume event converter. Note that the vendor provided JMS jars should be included in the
-Flume classpath using plugins.d directory (preferred), --classpath on command line, or
-via FLUME_CLASSPATH variable in flume-env.sh.
+JMS Source是一个可以从JMS的队列或者topic中读取消息的组件。按理说JMS Source作为一个JMS的应用应该是能够与任意的JMS消息队列无缝衔接工作的，可事实上目前仅在ActiveMQ上做了测试。
+JMS Source支持配置batch size、message selector、user/pass和event数据的转换器（converter）。
+注意所使用的JMS队列的jar包需要在Flume实例的classpath中，建议放在专门的插件目录plugins.d下面，或者启动时候用-classpath指定，或者编辑flume-env.sh文件的FLUME_CLASSPATH来设置。
 
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 =========================   ===========  ==============================================================
-Property Name               Default      Description
+属性                         默认值       解释
 =========================   ===========  ==============================================================
-**channels**                --
-**type**                    --           The component type name, needs to be ``jms``
-**initialContextFactory**   --           Inital Context Factory, e.g: org.apache.activemq.jndi.ActiveMQInitialContextFactory
-**connectionFactory**       --           The JNDI name the connection factory should appear as
-**providerURL**             --           The JMS provider URL
-**destinationName**         --           Destination name
-**destinationType**         --           Destination type (queue or topic)
-messageSelector             --           Message selector to use when creating the consumer
-userName                    --           Username for the destination/provider
-passwordFile                --           File containing the password for the destination/provider
-batchSize                   100          Number of messages to consume in one batch
-converter.type              DEFAULT      Class to use to convert messages to flume events. See below.
-converter.*                 --           Converter properties.
-converter.charset           UTF-8        Default converter only. Charset to use when converting JMS TextMessages to byte arrays.
-createDurableSubscription   false        Whether to create durable subscription. Durable subscription can only be used with
-                                         destinationType topic. If true, "clientId" and "durableSubscriptionName"
-                                         have to be specified.
-clientId                    --           JMS client identifier set on Connection right after it is created.
-                                         Required for durable subscriptions.
-durableSubscriptionName     --           Name used to identify the durable subscription. Required for durable subscriptions.
+**channels**                --           与Source绑定的channel，多个用空格分开
+**type**                    --           组件名，这个是： ``jms``
+**initialContextFactory**   --           初始上下文工厂类，比如： org.apache.activemq.jndi.ActiveMQInitialContextFactory
+**connectionFactory**       --           连接工厂应显示为的JNDI名称
+**providerURL**             --           JMS 的连接URL
+**destinationName**         --           目的地名称
+**destinationType**         --           目的地类型，queue 或 topic
+messageSelector             --           创建消费者时使用的消息选择器
+userName                    --           连接JMS队列时的用户名
+passwordFile                --           连接JMS队列时的密码文件，注意是文件名不是密码的明文
+batchSize                   100          消费JMS消息时单次发送的event数量
+converter.type              DEFAULT      用来转换JMS消息为FlumeEvent的转换器类，参考下面参数。
+converter.*                 --           转换器相关的属性
+converter.charset           UTF-8        转换器把JMS的文本消息转换为byte arrays时候使用的编码，默认转换器的专属参数
+createDurableSubscription   false        是否创建持久化订阅。 持久化订阅只能在 destinationType 为topic时使用。 如果为true，则必须配置 *clientId* 和 *durableSubscriptionName*。
+clientId                    --           连接创建后立即给JMS客户端设置标识符。持久化订阅必配参数。
+durableSubscriptionName     --           用于标识持久订阅的名称。持久化订阅必配参数。
 =========================   ===========  ==============================================================
 
 
-Converter
+关于转换器
 '''''''''''
-The JMS source allows pluggable converters, though it's likely the default converter will work
-for most purposes. The default converter is able to convert Bytes, Text, and Object messages
-to FlumeEvents. In all cases, the properties in the message are added as headers to the
-FlumeEvent.
+JMS source可以配置插入式的转换器，尽管默认的转换器已经足够应付大多数场景了，默认的转换器可以把字节、文本、对象消息转换为FlumeEvent。不管哪种类型消息中的属性都会作为headers被添加到FlumeEvent中。 
 
-BytesMessage:
-  Bytes of message are copied to body of the FlumeEvent. Cannot convert more than 2GB
-  of data per message.
+字节消息：JMS消息中的字节会被拷贝到FlumeEvent的body中，注意转换器处理的单个消息大小不能超过2GB。 
 
-TextMessage:
-  Text of message is converted to a byte array and copied to the body of the
-  FlumeEvent. The default converter uses UTF-8 by default but this is configurable.
+文本消息：JMS消息中的文本会被转为byte array拷贝到FlumeEvent的body中。默认的编码是UTF-8，可自行配置编码。 
 
-ObjectMessage:
-  Object is written out to a ByteArrayOutputStream wrapped in an ObjectOutputStream and
-  the resulting array is copied to the body of the FlumeEvent.
+对象消息：对象消息会被写出到封装在ObjectOutputStream中的ByteArrayOutputStream里面，得到的array被复制到FlumeEvent的body。
 
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -999,88 +910,57 @@ Example for agent named a1:
 
 Spooling Directory Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-This source lets you ingest data by placing files to be ingested into a
-"spooling" directory on disk.
-This source will watch the specified directory for new files, and will parse
-events out of new files as they appear.
-The event parsing logic is pluggable.
-After a given file has been fully read
-into the channel, it is renamed to indicate completion (or optionally deleted).
 
-Unlike the Exec source, this source is reliable and will not miss data, even if
-Flume is restarted or killed. In exchange for this reliability, only immutable,
-uniquely-named files must be dropped into the spooling directory. Flume tries
-to detect these problem conditions and will fail loudly if they are violated:
+这个Source允许你把要收集的文件放入磁盘上的某个指定目录。它会将监视这个目录中产生的新文件，并在新文件出现时从新文件中解析数据出来。数据解析逻辑是可配置的。在新文件被完全读入Channel之后会重命名该文件以示完成（也可以配置成读完后立即删除）。
 
-#. If a file is written to after being placed into the spooling directory,
-   Flume will print an error to its log file and stop processing.
-#. If a file name is reused at a later time, Flume will print an error to its
-   log file and stop processing.
+与Exec Source不同，Spooling Directory Source是可靠的，即使Flume重新启动或被kill，也不会丢失数据。同时作为这种可靠性的代价，指定目录中的文件必须是不可变的、唯一命名的。Flume会自动检测避免这种情况发生，如果发现问题，则会抛出异常： 
 
-To avoid the above issues, it may be useful to add a unique identifier
-(such as a timestamp) to log file names when they are moved into the spooling
-directory.
+#. 如果文件在写入完成后又被再次写入新内容，Flume将向其日志文件（这是指Flume自己logs目录下的日志文件打印错误）打印错误并停止处理。
+#. 如果在以后重新使用以前的文件名，Flume将向其日志文件打印错误并停止处理。
 
-Despite the reliability guarantees of this source, there are still
-cases in which events may be duplicated if certain downstream failures occur.
-This is consistent with the guarantees offered by other Flume components.
+为了避免上述问题，生成新文件的时候文件名加上时间戳是个不错的办法。
+
+尽管有这个Source的可靠性保证，但是仍然存在这样的情况，某些下游故障发生，event可能会被复制过去。这与其他Flume组件提供的保证是一致的。
 
 ========================  ==============  ==========================================================
-Property Name             Default         Description
+属性名                     默认值           解释
 ========================  ==============  ==========================================================
-**channels**              --
-**type**                  --              The component type name, needs to be ``spooldir``.
-**spoolDir**              --              The directory from which to read files from.
-fileSuffix                .COMPLETED      Suffix to append to completely ingested files
-deletePolicy              never           When to delete completed files: ``never`` or ``immediate``
-fileHeader                false           Whether to add a header storing the absolute path filename.
-fileHeaderKey             file            Header key to use when appending absolute path filename to event header.
-basenameHeader            false           Whether to add a header storing the basename of the file.
-basenameHeaderKey         basename        Header Key to use when appending  basename of file to event header.
-includePattern            ^.*$            Regular expression specifying which files to include.
-                                          It can used together with ``ignorePattern``.
-                                          If a file matches both ``ignorePattern`` and ``includePattern`` regex,
-                                          the file is ignored.
-ignorePattern             ^$              Regular expression specifying which files to ignore (skip).
-                                          It can used together with ``includePattern``.
-                                          If a file matches both ``ignorePattern`` and ``includePattern`` regex,
-                                          the file is ignored.
-trackerDir                .flumespool     Directory to store metadata related to processing of files.
-                                          If this path is not an absolute path, then it is interpreted as relative to the spoolDir.
-consumeOrder              oldest          In which order files in the spooling directory will be consumed ``oldest``,
-                                          ``youngest`` and ``random``. In case of ``oldest`` and ``youngest``, the last modified
-                                          time of the files will be used to compare the files. In case of a tie, the file
-                                          with smallest lexicographical order will be consumed first. In case of ``random`` any
-                                          file will be picked randomly. When using ``oldest`` and ``youngest`` the whole
-                                          directory will be scanned to pick the oldest/youngest file, which might be slow if there
-                                          are a large number of files, while using ``random`` may cause old files to be consumed
-                                          very late if new files keep coming in the spooling directory.
-pollDelay                 500             Delay (in milliseconds) used when polling for new files.
-recursiveDirectorySearch  false           Whether to monitor sub directories for new files to read.
-maxBackoff                4000            The maximum time (in millis) to wait between consecutive attempts to
-                                          write to the channel(s) if the channel is full. The source will start at
-                                          a low backoff and increase it exponentially each time the channel throws a
-                                          ChannelException, upto the value specified by this parameter.
-batchSize                 100             Granularity at which to batch transfer to the channel
-inputCharset              UTF-8           Character set used by deserializers that treat the input file as text.
-decodeErrorPolicy         ``FAIL``        What to do when we see a non-decodable character in the input file.
-                                          ``FAIL``: Throw an exception and fail to parse the file.
-                                          ``REPLACE``: Replace the unparseable character with the "replacement character" char,
-                                          typically Unicode U+FFFD.
-                                          ``IGNORE``: Drop the unparseable character sequence.
-deserializer              ``LINE``        Specify the deserializer used to parse the file into events.
-                                          Defaults to parsing each line as an event. The class specified must implement
-                                          ``EventDeserializer.Builder``.
-deserializer.*                            Varies per event deserializer.
-bufferMaxLines            --              (Obselete) This option is now ignored.
-bufferMaxLineLength       5000            (Deprecated) Maximum length of a line in the commit buffer. Use deserializer.maxLineLength instead.
-selector.type             replicating     replicating or multiplexing
-selector.*                                Depends on the selector.type value
-interceptors              --              Space-separated list of interceptors
-interceptors.*
+**channels**              --              与Source绑定的channel，多个用空格分开
+**type**                  --              组件名，这个是： ``spooldir``.
+**spoolDir**              --              Flume Source监控的文件夹目录，该目录下的文件会被Flume收集
+fileSuffix                .COMPLETED      被Flume收集完成的文件被重命名的后缀。1.txt被Flume收集完成后会重命名为1.txt.COMPLETED
+deletePolicy              never           是否删除已完成收集的文件，可选值: ``never`` 或 ``immediate``
+fileHeader                false           是否添加文件的绝对路径名（绝对路径+文件名）到header中。
+fileHeaderKey             file            添加绝对路径名到header里面所使用的key（配合上面的fileHeader一起使用）
+basenameHeader            false           是否添加文件名（只是文件名，不包括路径）到header 中
+basenameHeaderKey         basename        添加文件名到header里面所使用的key（配合上面的basenameHeader一起使用）
+includePattern            ^.*$            指定会被收集的文件名正则表达式,它跟下面的ignorePattern不冲突，可以一起使用。如果一个文件名同时被这两个正则匹配到，则会被忽略，换句话说ignorePattern的优先级更高
+ignorePattern             ^$              指定要忽略的文件名称正则表达式。它可以跟 ``includePattern`` 一起使用，如果一个文件被``ignorePattern`` 和 ``includePattern``两个正则都匹配到，这个文件会被忽略。
+trackerDir                .flumespool     用于存储与文件处理相关的元数据的目录。如果配置的是相对目录地址，它会在spoolDir中开始创建
+                                          
+consumeOrder              oldest          设定收集目录内文件的顺序。默认是“先来先走”（也就是最先生成的文件先被收集），可选值有： ``oldest`` 、 ``youngest`` 和 ``random`` 。当使用oldest和youngest这两种选项的时候，Flume会扫描整个文件夹进行对比排序，当文件夹里面有大量的文件的时候可能会运行缓慢。
+                                          当使用random时候，如果一直在产生新的文件，有一部分老文件可能会很久才会被收集
+pollDelay                 500             Flume监视目录内新文件产生的时间间隔，单位是毫秒
+recursiveDirectorySearch  false           是否收集子目录下的日志文件
+maxBackoff                4000            等待写入channel的最长退避时间，如果channel已满实例启动时会自动设定一个很低的值，当遇到ChannelException异常时会自动以指数级增加这个超时时间，
+                                          直到达到设定的这个最大值为止
+batchSize                 100             每次批量传输到channel时的size大小
+inputCharset              UTF-8           解析器读取文件时使用的编码（解析器会把所有文件当做文本读取）
+decodeErrorPolicy         ``FAIL``        当从文件读取时遇到不可解析的字符时如何处理
+                                          ``FAIL`` ：抛出异常，解析文件失败
+                                          ``REPLACE`` ：替换掉这些无法解析的字符，通常是用U+FFFD
+                                          ``IGNORE`` ：忽略无法解析的字符
+deserializer              ``LINE``        指定一个把文件中的数据行解析成FlumeEvent的解析器。默认是把每一行当做一个event进行解析，所有解析器必须实现EventDeserializer.Builder接口
+deserializer.*                            解析器的相关属性，根据解析器不同而不同
+bufferMaxLines            --              （已废弃）
+bufferMaxLineLength       5000            （已废弃）每行的最大长度。改用 ``deserializer.maxLineLength`` 代替
+selector.type             replicating     可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                                channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors              --              该source所使用的拦截器，多个用空格分开
+interceptors.*                            拦截器相关的属性配置
 ========================  ==============  ==========================================================
 
-Example for an agent named agent-1:
+配置范例：
 
 .. code-block:: properties
 
@@ -1092,109 +972,90 @@ Example for an agent named agent-1:
   a1.sources.src-1.spoolDir = /var/log/apache/flumeSpool
   a1.sources.src-1.fileHeader = true
 
-Event Deserializers
+Event反序列化器
 '''''''''''''''''''
 
-The following event deserializers ship with Flume.
+下面是Flume内置的一些反序列化工具
 
 LINE
 ^^^^
 
-This deserializer generates one event per line of text input.
+这个反序列化器会把文本数据的每行解析成一个event
 
 ==============================  ==============  ==========================================================
-Property Name                   Default         Description
+属性                             默认值          解释
 ==============================  ==============  ==========================================================
-deserializer.maxLineLength      2048            Maximum number of characters to include in a single event.
-                                                If a line exceeds this length, it is truncated, and the
-                                                remaining characters on the line will appear in a
-                                                subsequent event.
-deserializer.outputCharset      UTF-8           Charset to use for encoding events put into the channel.
+deserializer.maxLineLength      2048            每个event数据所包含的最大字符数，如果一行文本字符数超过这个配置就会被截断，剩下的字符会出现再后面的event数据里
+deserializer.outputCharset      UTF-8           解析FlumeEvent所使用的编码
 ==============================  ==============  ==========================================================
+
+.. hint:: ``deserializer.maxLineLength`` 的默认值是2048，这个数值对于日志行来说有点小，如果实际使用中日志每行字符数可能超过2048，超出的部分会被截断，千万记得根据自己的日志长度调大这个值。
 
 AVRO
 ^^^^
 
-This deserializer is able to read an Avro container file, and it generates
-one event per Avro record in the file.
-Each event is annotated with a header that indicates the schema used.
-The body of the event is the binary Avro record data, not
-including the schema or the rest of the container file elements.
+这个反序列化器能够读取avro容器文件，并在文件中为每个Avro记录生成一个event。每个event都会在header中记录它的模式。event的body是二进制的avro记录内容，不包括模式和容器文件元素的其余部分。
 
-Note that if the spool directory source must retry putting one of these events
-onto a channel (for example, because the channel is full), then it will reset
-and retry from the most recent Avro container file sync point. To reduce
-potential event duplication in such a failure scenario, write sync markers more
-frequently in your Avro input files.
+注意如果Spooling Directory Source发生了重新把一个event放入channel的情况（比如，通道已满导致重试），则它将重置并从最新的Avro容器文件同步点重试。 为了减少此类情况下的潜在event重复，请在Avro输入文件中更频繁地写入同步标记。
 
 ==============================  ==============  ======================================================================
-Property Name                   Default         Description
+属性名                           默认值          解释
 ==============================  ==============  ======================================================================
-deserializer.schemaType         HASH            How the schema is represented. By default, or when the value ``HASH``
-                                                is specified, the Avro schema is hashed and
-                                                the hash is stored in every event in the event header
-                                                "flume.avro.schema.hash". If ``LITERAL`` is specified, the JSON-encoded
-                                                schema itself is stored in every event in the event header
-                                                "flume.avro.schema.literal". Using ``LITERAL`` mode is relatively
-                                                inefficient compared to ``HASH`` mode.
+deserializer.schemaType         HASH            如何表示模式。 默认或者指定为 ``HASH`` 时，会对Avro模式进行哈希处理，并将哈希值存储在event header中以“flume.avro.schema.hash”这个key。 
+                                                如果指定为 ``LITERAL`` ，则会以JSON格式的模式存储在event header中以“flume.avro.schema.literal”这个key。 与HASH模式相比，使用LITERAL模式效率相对较低。
 ==============================  ==============  ======================================================================
 
 BlobDeserializer
 ^^^^^^^^^^^^^^^^
 
-This deserializer reads a Binary Large Object (BLOB) per event, typically one BLOB per file. For example a PDF or JPG file. Note that this approach is not suitable for very large objects because the entire BLOB is buffered in RAM.
+这个反序列化器可以反序列化一些大的二进制文件，一个文件解析成一个event，例如pdf或者jpg文件等。**注意这个解析器不太适合解析太大的文件，因为被反序列化的操作是在内存里面进行的**。
 
 ==========================  ==================  =======================================================================
-Property Name               Default             Description
+属性                         默认值              解释
 ==========================  ==================  =======================================================================
-**deserializer**            --                  The FQCN of this class: ``org.apache.flume.sink.solr.morphline.BlobDeserializer$Builder``
-deserializer.maxBlobLength  100000000           The maximum number of bytes to read and buffer for a given request
+**deserializer**            --                  这个解析器没有别名缩写，需要填类的全限定名： ``org.apache.flume.sink.solr.morphline.BlobDeserializer$Builder``
+deserializer.maxBlobLength  100000000           每次请求的最大读取和缓冲的字节数（默认这个值大概是95.36MB）
 ==========================  ==================  =======================================================================
 
 Taildir Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-.. note:: **This source is provided as a preview feature. It does not work on Windows.**
+.. note:: **Taildir Source目前只是个预览版本，还不能运行在windows系统上。**
 
-Watch the specified files, and tail them in nearly real-time once detected new lines appended to the each files.
-If the new lines are being written, this source will retry reading them in wait for the completion of the write.
+Taildir Source监控指定的一些文件，并在检测到新的一行数据产生的时候几乎实时地读取它们，如果新的一行数据还没写完，Taildir Source会等到这行写完后再读取。
 
-This source is reliable and will not miss data even when the tailing files rotate.
-It periodically writes the last read position of each files on the given position file in JSON format.
-If Flume is stopped or down for some reason, it can restart tailing from the position written on the existing position file.
+Taildir Source是可靠的，即使发生文件轮换（译者注1）也不会丢失数据。它会定期地以JSON格式在一个专门用于定位的文件上记录每个文件的最后读取位置。如果Flume由于某种原因停止或挂掉，它可以从文件的标记位置重新开始读取。
 
-In other use case, this source can also start tailing from the arbitrary position for each files using the given position file.
-When there is no position file on the specified path, it will start tailing from the first line of each files by default.
+Taildir Source还可以从任意指定的位置开始读取文件。默认情况下，它将从每个文件的第一行开始读取。
 
-Files will be consumed in order of their modification time. File with the oldest modification time will be consumed first.
+文件按照修改时间的顺序来读取。修改时间最早的文件将最先被读取（简单记成：先来先走）。
 
-This source does not rename or delete or do any modifications to the file being tailed.
-Currently this source does not support tailing binary files. It reads text files line by line.
+Taildir Source不重命名、删除或修改它监控的文件。当前不支持读取二进制文件。只能逐行读取文本文件。
+
+.. hint:: 译者注1：文件轮换 （file rotate）是英文直译。通常系统会自动丢弃日志文件中时间久远的日志，一般按照日志文件大小或时间来自动分割或丢弃的机制。参考来源：`Log rotation <https://en.wikipedia.org/wiki/Log_rotation>`_
 
 =================================== ============================== ===================================================
-Property Name                       Default                        Description
+属性名                               默认值                         解释
 =================================== ============================== ===================================================
-**channels**                        --
-**type**                            --                             The component type name, needs to be ``TAILDIR``.
-**filegroups**                      --                             Space-separated list of file groups. Each file group indicates a set of files to be tailed.
-**filegroups.<filegroupName>**      --                             Absolute path of the file group. Regular expression (and not file system patterns) can be used for filename only.
-positionFile                        ~/.flume/taildir_position.json File in JSON format to record the inode, the absolute path and the last position of each tailing file.
-headers.<filegroupName>.<headerKey> --                             Header value which is the set with header key. Multiple headers can be specified for one file group.
-byteOffsetHeader                    false                          Whether to add the byte offset of a tailed line to a header called 'byteoffset'.
-skipToEnd                           false                          Whether to skip the position to EOF in the case of files not written on the position file.
-idleTimeout                         120000                         Time (ms) to close inactive files. If the closed file is appended new lines to, this source will automatically re-open it.
-writePosInterval                    3000                           Interval time (ms) to write the last position of each file on the position file.
-batchSize                           100                            Max number of lines to read and send to the channel at a time. Using the default is usually fine.
-backoffSleepIncrement               1000                           The increment for time delay before reattempting to poll for new data, when the last attempt did not find any new data.
-maxBackoffSleep                     5000                           The max time delay between each reattempt to poll for new data, when the last attempt did not find any new data.
-cachePatternMatching                true                           Listing directories and applying the filename regex pattern may be time consuming for directories
-                                                                   containing thousands of files. Caching the list of matching files can improve performance.
-                                                                   The order in which files are consumed will also be cached.
-                                                                   Requires that the file system keeps track of modification times with at least a 1-second granularity.
-fileHeader                          false                          Whether to add a header storing the absolute path filename.
-fileHeaderKey                       file                           Header key to use when appending absolute path filename to event header.
+**channels**                        --                             与Source绑定的channel，多个用空格分开
+**type**                            --                             组件名，这个是：  ``TAILDIR``.
+**filegroups**                      --                             被监控的文件夹目录集合，这些文件夹下的文件都会被监控，多个用空格分隔
+**filegroups.<filegroupName>**      --                             被监控文件夹的绝对路径。正则表达式（注意不会匹配文件系统的目录）只是用来匹配文件名
+positionFile                        ~/.flume/taildir_position.json 用来设定一个记录每个文件的绝对路径和最近一次读取位置inode的文件，这个文件是JSON格式。
+headers.<filegroupName>.<headerKey> --                             给某个文件组下的event添加一个固定的键值对到header中，值就是value。一个文件组可以配置多个键值对。
+byteOffsetHeader                    false                          是否把读取数据行的字节偏移量记录到event的header里面，这个header的key是byteoffset
+skipToEnd                           false                          如果在 ``positionFile`` 里面没有记录某个文件的读取位置，是否直接跳到文件末尾开始读取
+idleTimeout                         120000                         关闭非活动文件的超时时间（毫秒）。如果被关闭的文件重新写入了新的数据行，会被重新打开
+writePosInterval                    3000                           向 ``positionFile`` 记录文件的读取位置的间隔时间，单位：毫秒
+batchSize                           100                            一次读取数据行和写入channel的最大数量，通常使用默认值就很好
+backoffSleepIncrement               1000                           在最后一次尝试未发现任何新数据时，重新尝试轮询新数据之前的时间延迟增量。单位：毫秒
+maxBackoffSleep                     5000                           每次重新尝试轮询新数据时的最大时间延迟，单位：毫秒
+cachePatternMatching                true                           对于包含数千个文件的目录，列出目录并应用文件名正则表达式模式可能非常耗时。 缓存匹配文件列表可以提高性能。
+                                                                   消耗文件的顺序也将被缓存。 要求文件系统支持以至少秒级跟踪修改时间。
+fileHeader                          false                          是否在header里面存储文件的绝对路径
+fileHeaderKey                       file                           文件的绝对路径存储到header里面使用的key
 =================================== ============================== ===================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -1211,33 +1072,32 @@ Example for agent named a1:
   a1.sources.r1.headers.f2.headerKey2 = value2-2
   a1.sources.r1.fileHeader = true
 
-Twitter 1% firehose Source (experimental)
+Twitter 1% firehose Source (实验性的)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. warning::
-  This source is highly experimental and may change between minor versions of Flume.
-  Use at your own risk.
+  这个source 纯粹是实验性的，之后的版本可能会有改动，使用中任何风险请自行承担。
 
-Experimental source that connects via Streaming API to the 1% sample twitter
-firehose, continously downloads tweets, converts them to Avro format and
-sends Avro events to a downstream Flume sink. Requires the consumer and
-access tokens and secrets of a Twitter developer account.
-Required properties are in **bold**.
+.. hint:: 从Google上搜了一下twitter firehose到底是什么东西，找到了这个 `What is Twitter firehose and who can use it? <https://www.quora.com/What-is-Twitter-firehose-and-who-can-use-it>`_，
+  类似于Twitter提供的实时的消息流服务的API，只有少数的一些合作商公司才能使用，对于我们普通的使用者来说没有任何意义。本节可以跳过不用看了。
+
+这个Source通过流API连接到1%的样本twitter信息流并下载这些tweet，将它们转换为Avro格式，并将Avro event发送到下游Flume。使用者需要有Twitter开发者账号、访问令牌和秘钥。
+必需的参数已用 **粗体** 标明。      
 
 ====================== ===========  ===================================================
-Property Name          Default      Description
+属性                    默认值       解释
 ====================== ===========  ===================================================
-**channels**           --
-**type**               --           The component type name, needs to be ``org.apache.flume.source.twitter.TwitterSource``
+**channels**           --           与Source绑定的channel，多个用空格分开
+**type**               --           组件名，这个是： ``org.apache.flume.source.twitter.TwitterSource``
 **consumerKey**        --           OAuth consumer key
 **consumerSecret**     --           OAuth consumer secret
 **accessToken**        --           OAuth access token
 **accessTokenSecret**  --           OAuth token secret
-maxBatchSize           1000         Maximum number of twitter messages to put in a single batch
-maxBatchDurationMillis 1000         Maximum number of milliseconds to wait before closing a batch
+maxBatchSize           1000         每次获取twitter数据的数据集大小，简单说就是一次取多少
+maxBatchDurationMillis 1000         每次批量获取数据的最大等待时间（毫秒）
 ====================== ===========  ===================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -1255,74 +1115,47 @@ Example for agent named a1:
 Kafka Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Kafka Source is an Apache Kafka consumer that reads messages from Kafka topics.
-If you have multiple Kafka sources running, you can configure them with the same Consumer Group
-so each will read a unique set of partitions for the topics.
+Kafka Source就是一个Apache Kafka消费者，它从Kafka的topic中读取消息。 如果运行了多个Kafka Source，则可以把它们配置到同一个消费者组，以便每个source都读取一组唯一的topic分区。
 
-==================================  ===========  ===================================================
-Property Name                       Default      Description
-==================================  ===========  ===================================================
-**channels**                        --
-**type**                            --           The component type name, needs to be ``org.apache.flume.source.kafka.KafkaSource``
-**kafka.bootstrap.servers**         --           List of brokers in the Kafka cluster used by the source
-kafka.consumer.group.id             flume        Unique identified of consumer group. Setting the same id in multiple sources or agents
-                                                 indicates that they are part of the same consumer group
-**kafka.topics**                    --           Comma-separated list of topics the kafka consumer will read messages from.
-**kafka.topics.regex**              --           Regex that defines set of topics the source is subscribed on. This property has higher priority
-                                                 than ``kafka.topics`` and overrides ``kafka.topics`` if exists.
-batchSize                           1000         Maximum number of messages written to Channel in one batch
-batchDurationMillis                 1000         Maximum time (in ms) before a batch will be written to Channel
-                                                 The batch will be written whenever the first of size and time will be reached.
-backoffSleepIncrement               1000         Initial and incremental wait time that is triggered when a Kafka Topic appears to be empty.
-                                                 Wait period will reduce aggressive pinging of an empty Kafka Topic.  One second is ideal for
-                                                 ingestion use cases but a lower value may be required for low latency operations with
-                                                 interceptors.
-maxBackoffSleep                     5000         Maximum wait time that is triggered when a Kafka Topic appears to be empty.  Five seconds is
-                                                 ideal for ingestion use cases but a lower value may be required for low latency operations
-                                                 with interceptors.
-useFlumeEventFormat                 false        By default events are taken as bytes from the Kafka topic directly into the event body. Set to
-                                                 true to read events as the Flume Avro binary format. Used in conjunction with the same property
-                                                 on the KafkaSink or with the parseAsFlumeEvent property on the Kafka Channel this will preserve
-                                                 any Flume headers sent on the producing side.
-setTopicHeader                      true         When set to true, stores the topic of the retrieved message into a header, defined by the
-                                                 ``topicHeader`` property.
-topicHeader                         topic        Defines the name of the header in which to store the name of the topic the message was received
-                                                 from, if the ``setTopicHeader`` property is set to ``true``. Care should be taken if combining
-                                                 with the Kafka Sink ``topicHeader`` property so as to avoid sending the message back to the same
-                                                 topic in a loop.
-migrateZookeeperOffsets             true         When no Kafka stored offset is found, look up the offsets in Zookeeper and commit them to Kafka.
-                                                 This should be true to support seamless Kafka client migration from older versions of Flume.
-                                                 Once migrated this can be set to false, though that should generally not be required.
-                                                 If no Zookeeper offset is found, the Kafka configuration kafka.consumer.auto.offset.reset
-                                                 defines how offsets are handled.
-                                                 Check `Kafka documentation <http://kafka.apache.org/documentation.html#newconsumerconfigs>`_ for details
-kafka.consumer.security.protocol    PLAINTEXT    Set to SASL_PLAINTEXT, SASL_SSL or SSL if writing to Kafka using some level of security. See below for additional info on secure setup.
-*more consumer security props*                   If using SASL_PLAINTEXT, SASL_SSL or SSL refer to `Kafka security <http://kafka.apache.org/documentation.html#security>`_ for additional
-                                                 properties that need to be set on consumer.
-Other Kafka Consumer Properties     --           These properties are used to configure the Kafka Consumer. Any consumer property supported
-                                                 by Kafka can be used. The only requirement is to prepend the property name with the prefix
-                                                 ``kafka.consumer``.
-                                                 For example: ``kafka.consumer.auto.offset.reset``
-==================================  ===========  ===================================================
+==================================  ===========  ===================================================================================================
+属性名                               默认值       解释
+==================================  ===========  ===================================================================================================
+**channels**                        --           与Source绑定的channel，多个用空格分开
+**type**                            --           组件名，这个是： ``org.apache.flume.source.kafka.KafkaSource``
+**kafka.bootstrap.servers**         --           Source使用的Kafka集群实例列表
+kafka.consumer.group.id             flume        消费组的唯一标识符。如果有多个source或者agent设定了相同的ID，表示它们是同一个消费者组
+**kafka.topics**                    --           将要读取消息的目标 Kafka topic 列表，多个用逗号分隔
+**kafka.topics.regex**              --           会被Kafka Source订阅的 topic 集合的正则表达式。这个参数比 kafka.topics 拥有更高的优先级，如果这两个参数同时存在，则会覆盖kafka.topics的配置。
+batchSize                           1000         一批写入 channel 的最大消息数
+batchDurationMillis                 1000         一个批次写入 channel 之前的最大等待时间（毫秒）。达到等待时间或者数量达到 batchSize 都会触发写操作。
+backoffSleepIncrement               1000         当Kafka topic 显示为空时触发的初始和增量等待时间（毫秒）。等待时间可以避免对Kafka topic的频繁ping操作。默认的1秒钟对于获取数据比较合适，
+                                                 但是对于使用拦截器时想达到更低的延迟可能就需要配置更低一些。
+maxBackoffSleep                     5000         Kafka topic 显示为空时触发的最长等待时间（毫秒）。默认的5秒钟对于获取数据比较合适，但是对于使用拦截器时想达到更低的延迟可能就需要配置更低一些。
+useFlumeEventFormat                 false        默认情况下，从 Kafka topic 里面读取到的内容直接以字节数组的形式赋值给event。如果设置为true，会以Flume Avro二进制格式进行读取。与Kafka Sink上的同名参数或者 Kafka channel 的parseAsFlumeEvent参数相关联，这样以对象的形式处理能使生成端发送过来的event header信息得以保留。
+setTopicHeader                      true         当设置为true时，会把存储event的topic名字存储到header中，使用的key就是下面的 ``topicHeader`` 的值。
+topicHeader                         topic        如果 ``setTopicHeader`` 设置为true，则定义用于存储接收消息的 topic 使用header key。注意如果与Kafka Sink 的 topicHeader 参数一起使用的时候要小心，避免又循环将消息又发送回 topic。
+migrateZookeeperOffsets             true         如果找不到Kafka存储的偏移量，去Zookeeper中查找偏移量并将它们提交给 Kafka 。 它应该设置为true以支持从旧版本的FlumeKafka客户端无缝迁移。 迁移后，可以将其设置为false，但通常不需要这样做。 
+                                                 如果在Zookeeper未找到偏移量，则可通过kafka.consumer.auto.offset.reset配置如何处理偏移量。可以从 `Kafka documentation <http://kafka.apache.org/documentation.html#newconsumerconfigs>`_ 查看更多详细信息。
+kafka.consumer.security.protocol    PLAINTEXT    设置使用哪种安全协议写入Kafka。可选值：SASL_PLAINTEXT、SASL_SSL 和 SSL有关安全设置的其他信息，请参见下文。
+*more consumer security props*                   如果使用了SASL_PLAINTEXT、SASL_SSL 或 SSL 等安全协议，参考 `Kafka security <http://kafka.apache.org/documentation.html#security>`_ 来为消费者增加安全相关的参数配置
+Other Kafka Consumer Properties     --           其他一些 Kafka 消费者配置参数。任何 Kafka 支持的消费者参数都可以使用。唯一的要求是使用“kafka.consumer.”这个前缀来配置参数，比如： ``kafka.consumer.auto.offset.reset``
+==================================  ===========  ===================================================================================================
 
-.. note:: The Kafka Source overrides two Kafka consumer parameters:
-          auto.commit.enable is set to "false" by the source and every batch is committed. Kafka source guarantees at least once
-          strategy of messages retrieval. The duplicates can be present when the source starts.
-          The Kafka Source also provides defaults for the key.deserializer(org.apache.kafka.common.serialization.StringSerializer)
-          and value.deserializer(org.apache.kafka.common.serialization.ByteArraySerializer). Modification of these parameters is not recommended.
+.. note:: Kafka Source 覆盖了两个Kafka 消费者的参数：auto.commit.enable 这个参数被设置成了false，Kafka Source 会提交每一个批处理。Kafka Source 保证至少一次消息恢复策略。
+          Source 启动时可以存在重复项。Kafka Source 还提供了key.deserializer（org.apache.kafka.common.serialization.StringSerializer） 和 
+          value.deserializer（org.apache.kafka.common.serialization.ByteArraySerializer）的默认值，不建议修改这些参数。
 
-Deprecated Properties
+已经弃用的一些属性：
 
 ===============================  ===================  =============================================================================================
-Property Name                    Default              Description
+属性名                            默认值               解释
 ===============================  ===================  =============================================================================================
-topic                            --                   Use kafka.topics
-groupId                          flume                Use kafka.consumer.group.id
-zookeeperConnect                 --                   Is no longer supported by kafka consumer client since 0.9.x. Use kafka.bootstrap.servers
-                                                      to establish connection with kafka cluster
+topic                            --                   改用 kafka.topics
+groupId                          flume                改用 kafka.consumer.group.id
+zookeeperConnect                 --                   自0.9.x起不再受kafka消费者客户端的支持。以后使用kafka.bootstrap.servers与kafka集群建立连接
 ===============================  ===================  =============================================================================================
 
-Example for topic subscription by comma-separated topic list.
+通过逗号分隔的 topic 列表进行 topic 订阅的示例：
 
 .. code-block:: properties
 
@@ -1334,7 +1167,7 @@ Example for topic subscription by comma-separated topic list.
     tier1.sources.source1.kafka.topics = test1, test2
     tier1.sources.source1.kafka.consumer.group.id = custom.g.id
 
-Example for topic subscription by regex
+正则表达式 topic 订阅的示例：
 
 .. code-block:: properties
 
@@ -1346,33 +1179,25 @@ Example for topic subscription by regex
 
 
 **Security and Kafka Source:**
+Flume 和 Kafka 之间通信渠道是支持安全认证和数据加密的。对于身份安全验证，可以使用 Kafka 0.9.0版本中的 SASL、GSSAPI （Kerberos V5） 或 SSL （虽然名字是SSL，实际是TLS实现）。
 
-Secure authentication as well as data encryption is supported on the communication channel between Flume and Kafka.
-For secure authentication SASL/GSSAPI (Kerberos V5) or SSL (even though the parameter is named SSL, the actual protocol is a TLS implementation) can be used from Kafka version 0.9.0.
+截至目前，数据加密仅由SSL / TLS提供。
 
-As of now data encryption is solely provided by SSL/TLS.
+当你把 ``kafka.consumer.security.protocol`` 设置下面任何一个值的时候意味着：
 
-Setting ``kafka.consumer.security.protocol`` to any of the following value means:
-
-- **SASL_PLAINTEXT** - Kerberos or plaintext authentication with no data encryption
-- **SASL_SSL** - Kerberos or plaintext authentication with data encryption
-- **SSL** - TLS based encryption with optional authentication.
+- **SASL_PLAINTEXT** -  无数据加密的 Kerberos 或明文认证
+- **SASL_SSL** - 有数据加密的 Kerberos 或明文认证
+- **SSL** - 基于TLS的加密，可选的身份验证。
 
 .. warning::
-    There is a performance degradation when SSL is enabled,
-    the magnitude of which depends on the CPU type and the JVM implementation.
-    Reference: `Kafka security overview <http://kafka.apache.org/documentation#security_overview>`_
-    and the jira for tracking this issue:
-    `KAFKA-2561 <https://issues.apache.org/jira/browse/KAFKA-2561>`_
+    启用SSL时性能会下降，影响大小取决于 CPU 和 JVM 实现。参考 `Kafka security overview <http://kafka.apache.org/documentation#security_overview>`_ 和 `KAFKA-2561 <https://issues.apache.org/jira/browse/KAFKA-2561>`_ 。
 
 
 **TLS and Kafka Source:**
 
-Please read the steps described in `Configuring Kafka Clients SSL <http://kafka.apache.org/documentation#security_configclients>`_
-to learn about additional configuration settings for fine tuning for example any of the following:
-security provider, cipher suites, enabled protocols, truststore or keystore types.
+请阅读 `Configuring Kafka Clients SSL <http://kafka.apache.org/documentation#security_configclients>`_ SSL 中描述的步骤来了解用于微调的其他配置设置，例如下面的几个例子：启用安全策略、密码套件、启用协议、信任库或秘钥库类型。
 
-Example configuration with server side authentication and data encryption.
+服务端认证和数据加密的一个配置实例：
 
 .. code-block:: properties
 
@@ -1385,32 +1210,25 @@ Example configuration with server side authentication and data encryption.
     a1.sources.source1.kafka.consumer.ssl.truststore.password=<password to access the truststore>
 
 
-Note: By default the property ``ssl.endpoint.identification.algorithm``
-is not defined, so hostname verification is not performed.
-In order to enable hostname verification, set the following properties
+注意，默认情况下 ``ssl.endpoint.identification.algorithm`` 这个参数没有被定义，因此不会执行主机名验证。如果要启用主机名验证，请加入以下配置：
 
 .. code-block:: properties
 
     a1.sources.source1.kafka.consumer.ssl.endpoint.identification.algorithm=HTTPS
 
-Once enabled, clients will verify the server's fully qualified domain name (FQDN)
-against one of the following two fields:
+开启后，客户端将根据以下两个字段之一验证服务器的完全限定域名（FQDN）：
 
 #) Common Name (CN) https://tools.ietf.org/html/rfc6125#section-2.3
 #) Subject Alternative Name (SAN) https://tools.ietf.org/html/rfc5280#section-4.2.1.6
 
-If client side authentication is also required then additionally the following should be added to Flume agent configuration.
-Each Flume agent has to have its client certificate which has to be trusted by Kafka brokers either
-individually or by their signature chain. Common example is to sign each client certificate by a single Root CA
-which in turn is trusted by Kafka brokers.
+如果还需要客户端身份验证，则还应在 Flume 配置中添加以下内容。 每个Flume 实例都必须拥有其客户证书，来被Kafka 实例单独或通过其签名链来信任。 常见示例是由 Kafka 信任的单个根CA签署每个客户端证书。
 
 .. code-block:: properties
 
     a1.sources.source1.kafka.consumer.ssl.keystore.location=/path/to/client.keystore.jks
     a1.sources.source1.kafka.consumer.ssl.keystore.password=<password to access the keystore>
 
-If keystore and key use different password protection then ``ssl.key.password`` property will
-provide the required additional secret for both consumer keystores:
+如果密钥库和密钥使用不同的密码保护，则 ``ssl.key.password`` 属性将为消费者密钥库提供所需的额外密码：
 
 .. code-block:: properties
 
@@ -1419,17 +1237,15 @@ provide the required additional secret for both consumer keystores:
 
 **Kerberos and Kafka Source:**
 
-To use Kafka source with a Kafka cluster secured with Kerberos, set the ``consumer.security.protocol`` properties noted above for consumer.
-The Kerberos keytab and principal to be used with Kafka brokers is specified in a JAAS file's "KafkaClient" section. "Client" section describes the Zookeeper connection if needed.
-See `Kafka doc <http://kafka.apache.org/documentation.html#security_sasl_clientconfig>`_
-for information on the JAAS file contents. The location of this JAAS file and optionally the system wide kerberos configuration can be specified via JAVA_OPTS in flume-env.sh:
+要将Kafka Source 与使用Kerberos保护的Kafka群集一起使用，请为消费者设置上面提到的consumer.security.protocol 属性。 与Kafka实例一起使用的Kerberos keytab和主体在JAAS文件的“KafkaClient”部分中指定。 “客户端”部分描述了Zookeeper连接信息（如果需要）。 
+有关JAAS文件内容的信息，请参阅 `Kafka doc <http://kafka.apache.org/documentation.html#security_sasl_clientconfig>`_ 。 可以通过flume-env.sh中的JAVA_OPTS指定此JAAS文件的位置以及系统范围的 kerberos 配置：
 
 .. code-block:: properties
 
     JAVA_OPTS="$JAVA_OPTS -Djava.security.krb5.conf=/path/to/krb5.conf"
     JAVA_OPTS="$JAVA_OPTS -Djava.security.auth.login.config=/path/to/flume_jaas.conf"
 
-Example secure configuration using SASL_PLAINTEXT:
+使用 SASL_PLAINTEXT 的示例安全配置：
 
 .. code-block:: properties
 
@@ -1441,7 +1257,7 @@ Example secure configuration using SASL_PLAINTEXT:
     a1.sources.source1.kafka.consumer.sasl.mechanism = GSSAPI
     a1.sources.source1.kafka.consumer.sasl.kerberos.service.name = kafka
 
-Example secure configuration using SASL_SSL:
+使用 SASL_SSL 的安全配置范例：
 
 .. code-block:: properties
 
@@ -1456,11 +1272,8 @@ Example secure configuration using SASL_SSL:
     a1.sources.source1.kafka.consumer.ssl.truststore.password=<password to access the truststore>
 
 
-Sample JAAS file. For reference of its content please see client config sections of the desired authentication mechanism (GSSAPI/PLAIN)
-in Kafka documentation of `SASL configuration <http://kafka.apache.org/documentation#security_sasl_clientconfig>`_.
-Since the Kafka Source may also connect to Zookeeper for offset migration, the "Client" section was also added to this example.
-This won't be needed unless you require offset migration, or you require this section for other secure components.
-Also please make sure that the operating system user of the Flume processes has read privileges on the jaas and keytab files.
+JAAS 文件配置示例。有关其内容的参考，请参阅Kafka文档 `SASL configuration <http://kafka.apache.org/documentation#security_sasl_clientconfig>`_ 中关于所需认证机制（GSSAPI/PLAIN）的客户端配置部分。由于Kafka Source 也可以连接 Zookeeper 以进行偏移迁移，
+因此“Client”部分也添加到此示例中。除非您需要偏移迁移，否则不必要这样做，或者您需要此部分用于其他安全组件。 另外，请确保Flume进程的操作系统用户对 JAAS 和 keytab 文件具有读权限。
 
 .. code-block:: javascript
 
@@ -1484,30 +1297,28 @@ Also please make sure that the operating system user of the Flume processes has 
 NetCat TCP Source
 ~~~~~~~~~~~~~~~~~
 
-A netcat-like source that listens on a given port and turns each line of text
-into an event. Acts like ``nc -k -l [host] [port]``. In other words,
-it opens a specified port and listens for data. The expectation is that the
-supplied data is newline separated text. Each line of text is turned into a
-Flume event and sent via the connected channel.
+NetCat TCP Source十分像nc -k -l [host] [port]这个命令，监听一个指定的端口，把从该端口收到的TCP协议的文本数据按行转换为FlumeEvent，它能识别的是带换行符的文本数据，同其他Source一样，解析成功的FlumeEvent数据会发送到channel中。
 
-Required properties are in **bold**.
+.. hint:: 常见的系统日志都是逐行输出的，Flume的各种Source接收数据也基本上以行为单位进行解析和处理。不论是NetCat TCP Source，还是其他的读取文本类型的Source（Spooling Directory Source、Taildir Source、Exec Source等）也都是一样的。
+
+必需的参数已用 **粗体** 标明。      
 
 ===============  ===========  ===========================================
-Property Name    Default      Description
+属性              默认值       解释
 ===============  ===========  ===========================================
-**channels**     --
-**type**         --           The component type name, needs to be ``netcat``
-**bind**         --           Host name or IP address to bind to
-**port**         --           Port # to bind to
-max-line-length  512          Max line length per event body (in bytes)
-ack-every-event  true         Respond with an "OK" for every event received
-selector.type    replicating  replicating or multiplexing
-selector.*                    Depends on the selector.type value
-interceptors     --           Space-separated list of interceptors
-interceptors.*
+**channels**     --           与Source绑定的channel，多个用空格分开
+**type**         --           组件名，这个是： ``netcat``
+**bind**         --           要监听的 hostname 或者IP地址
+**port**         --           监听的端口
+max-line-length  512          每行解析成event 消息体的最大字节数
+ack-every-event  true         对收到的每一行数据用“OK”做出响应
+selector.type    replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                    channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors     --           该source所使用的拦截器，多个用空格分开
+interceptors.*                拦截器相关的属性配置
 ===============  ===========  ===========================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -1521,27 +1332,28 @@ Example for agent named a1:
 NetCat UDP Source
 ~~~~~~~~~~~~~~~~~
 
-As per the original Netcat (TCP) source, this source that listens on a given
-port and turns each line of text into an event and sent via the connected channel.
-Acts like ``nc -u -k -l [host] [port]``.
+看名字也看得出，跟NetCat TCP Source是一对亲兄弟，区别是监听的协议不同。NetCat UDP Source就像是 nc -u -k -l [host] [port]命令一样，
+监听一个端口然后接收来自于这个端口上UDP协议发送过来的文本内容，逐行转换为FlumeEvent发送到channel。
 
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 ===================  ===========  ===========================================
-Property Name        Default      Description
+属性                  默认值       解释
 ===================  ===========  ===========================================
-**channels**         --
-**type**             --           The component type name, needs to be ``netcatudp``
-**bind**             --           Host name or IP address to bind to
-**port**             --           Port # to bind to
-remoteAddressHeader  --
-selector.type        replicating  replicating or multiplexing
-selector.*                        Depends on the selector.type value
-interceptors         --           Space-separated list of interceptors
-interceptors.*
+**channels**         --           与Source绑定的channel，多个用空格分开
+**type**             --           组件名，这个是：``netcatudp``
+**bind**             --           要监听的 hostname 或者IP地址
+**port**             --           监听的端口
+remoteAddressHeader  --           UDP消息源地址（或IP）被解析到FlumeEvent的header里面时所使用的key名称
+selector.type        replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                        channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors         --           该source所使用的拦截器，多个用空格分开
+interceptors.*                    拦截器相关的属性配
 ===================  ===========  ===========================================
 
-Example for agent named a1:
+.. hint:: remoteAddressHeader这个参数在官方的英文文档中并没有任何描述，去看了flume1.8的org.apache.flume.source.NetcatUdpSource源码，上面表格里面的解释是我自己加的。
+
+配置范例：   
 
 .. code-block:: properties
 
@@ -1555,26 +1367,26 @@ Example for agent named a1:
 Sequence Generator Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A simple sequence generator that continuously generates events with a counter that starts from 0,
-increments by 1 and stops at totalEvents. Retries when it can't send events to the channel. Useful
-mainly for testing. During retries it keeps the body of the retried messages the same as before so
-that the number of unique events - after de-duplication at destination - is expected to be
-equal to the specified ``totalEvents``. Required properties are in **bold**.
+这个Source是一个序列式的FlumeEvent生成器，从它启动就开始生成，总共会生成totalEvents个。它并不是一个日志收集器，它通常是用来测试用的。它在发送失败的时候会重新发送失败的Event到channel，
+保证最终发送到channel的唯一Event数量一定是 ``totalEvents`` 个。
+必需的参数已用 **粗体** 标明。    
+
+.. hint:: 记住Flume的设计原则之一就是传输过程的『可靠性』，上面说的失败重试以及最终的数量问题，这是毫无疑问的。
 
 ==============  ===============  ========================================
-Property Name   Default          Description
+属性             默认值           解释
 ==============  ===============  ========================================
-**channels**    --
-**type**        --               The component type name, needs to be ``seq``
-selector.type                    replicating or multiplexing
-selector.*      replicating      Depends on the selector.type value
-interceptors    --               Space-separated list of interceptors
-interceptors.*
-batchSize       1                Number of events to attempt to process per request loop.
-totalEvents     Long.MAX_VALUE   Number of unique events sent by the source.
+**channels**    --               与Source绑定的channel，多个用空格分开
+**type**        --               组件名，这个是：``seq``
+selector.type                    可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*      replicating      channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors    --               该source所使用的拦截器，多个用空格分开
+interceptors.*                   拦截器相关的属性配
+batchSize       1                每次请求向channel发送的 event 数量
+totalEvents     Long.MAX_VALUE   这个Source会发出的FlumeEvent总数，这些FlumeEvent是唯一的
 ==============  ===============  ========================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -1586,39 +1398,34 @@ Example for agent named a1:
 Syslog Sources
 ~~~~~~~~~~~~~~
 
-Reads syslog data and generate Flume events. The UDP source treats an entire
-message as a single event. The TCP sources create a new event for each string
-of characters separated by a newline ('\n').
+这个Source是从syslog读取日志并解析为 event，同样也分为TCP协议和UDP协议的，TCP协议的Source会按行（\\n）来解析成 event，UDP协议的Souce会把一个消息体解析为一个 event。
 
-Required properties are in **bold**.
+  
 
 Syslog TCP Source
 '''''''''''''''''
 
-The original, tried-and-true syslog TCP source.
+.. hint:: 这个Syslog TCP Source在源码里面已经被@deprecated了，推荐使用Multiport Syslog TCP Source来代替。
+
+必需的参数已用 **粗体** 标明。    
 
 ==============   ===========  ==============================================
-Property Name    Default      Description
+属性              默认值       解释
 ==============   ===========  ==============================================
-**channels**     --
-**type**         --           The component type name, needs to be ``syslogtcp``
-**host**         --           Host name or IP address to bind to
-**port**         --           Port # to bind to
-eventSize        2500         Maximum size of a single event line, in bytes
-keepFields       none         Setting this to 'all' will preserve the Priority,
-                              Timestamp and Hostname in the body of the event.
-                              A spaced separated list of fields to include
-                              is allowed as well. Currently, the following
-                              fields can be included: priority, version,
-                              timestamp, hostname. The values 'true' and 'false'
-                              have been deprecated in favor of 'all' and 'none'.
-selector.type                 replicating or multiplexing
-selector.*       replicating  Depends on the selector.type value
-interceptors     --           Space-separated list of interceptors
-interceptors.*
+**channels**     --           与Source绑定的channel，多个用空格分开
+**type**         --           组件名，这个是： ``syslogtcp``
+**host**         --           要监听的hostname或者IP地址
+**port**         --           要监听的端口
+eventSize        2500         每行数据的最大字节数
+keepFields       none         是否保留syslog消息头中的一些属性到event中，可选值 ``all`` 、``none`` 或自定义指定保留的字段。如果设置为all，则会保留Priority, Timestamp 和Hostname三个属性到event中。
+                              也支持单独指定保留哪些属性（支持的属性有：priority, version, timestamp, hostname），用空格分开即可。现在已经不建议使用 ``true ``和 ``false``，建议改用 ``all`` 和 ``none ``了。
+selector.type    replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                    channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors     --           该source所使用的拦截器，多个用空格分开
+interceptors.*                拦截器相关的属性配
 ==============   ===========  ==============================================
 
-For example, a syslog TCP source for agent named a1:
+配置范例：
 
 .. code-block:: properties
 
@@ -1632,42 +1439,32 @@ For example, a syslog TCP source for agent named a1:
 Multiport Syslog TCP Source
 '''''''''''''''''''''''''''
 
-This is a newer, faster, multi-port capable version of the Syslog TCP source.
-Note that the ``ports`` configuration setting has replaced ``port``.
-Multi-port capability means that it can listen on many ports at once in an
-efficient manner. This source uses the Apache Mina library to do that.
-Provides support for RFC-3164 and many common RFC-5424 formatted messages.
-Also provides the capability to configure the character set used on a per-port
-basis.
+这是一个增强版的Syslog TCP Source，它更新、更快、支持监听多个端口。因为支持了多个端口，port参数已经改为了ports。这个Source使用了Apache mina（一个异步通信的框架，同netty类似）来实现。
+提供了对RFC-3164和许多常见的RFC-5424格式消息的支持。 支持每个端口配置不同字符集。
 
 ====================  ================  ==============================================
-Property Name         Default           Description
+属性                   默认值            解释
 ====================  ================  ==============================================
-**channels**          --
-**type**              --                The component type name, needs to be ``multiport_syslogtcp``
-**host**              --                Host name or IP address to bind to.
-**ports**             --                Space-separated list (one or more) of ports to bind to.
-eventSize             2500              Maximum size of a single event line, in bytes.
-keepFields            none              Setting this to 'all' will preserve the
-                                        Priority, Timestamp and Hostname in the body of the event.
-                                        A spaced separated list of fields to include
-                                        is allowed as well. Currently, the following
-                                        fields can be included: priority, version,
-                                        timestamp, hostname. The values 'true' and 'false'
-                                        have been deprecated in favor of 'all' and 'none'.
-portHeader            --                If specified, the port number will be stored in the header of each event using the header name specified here. This allows for interceptors and channel selectors to customize routing logic based on the incoming port.
-charset.default       UTF-8             Default character set used while parsing syslog events into strings.
-charset.port.<port>   --                Character set is configurable on a per-port basis.
-batchSize             100               Maximum number of events to attempt to process per request loop. Using the default is usually fine.
-readBufferSize        1024              Size of the internal Mina read buffer. Provided for performance tuning. Using the default is usually fine.
-numProcessors         (auto-detected)   Number of processors available on the system for use while processing messages. Default is to auto-detect # of CPUs using the Java Runtime API. Mina will spawn 2 request-processing threads per detected CPU, which is often reasonable.
-selector.type         replicating       replicating, multiplexing, or custom
-selector.*            --                Depends on the ``selector.type`` value
-interceptors          --                Space-separated list of interceptors.
-interceptors.*
+**channels**          --                与Source绑定的channel，多个用空格分开
+**type**              --                组件名，这个是：``multiport_syslogtcp``
+**host**              --                要监听的hostname或者IP地址
+**ports**             --                一个或多个要监听的端口，多个用空格分开
+eventSize             2500              解析成FlumeEvent的每行数据的最大字节数
+keepFields            none              是否保留syslog消息头中的一些属性到event中，可选值 ``all`` 、``none`` 或自定义指定保留的字段，如果设置为all，则会保留Priority, Timestamp 和Hostname三个属性到event中。
+                                        也支持单独指定保留哪些属性（支持的属性有：priority, version, timestamp, hostname），用空格分开即可。现在已经不建议使用 ``true`` 和 ``false`` ，建议改用 ``all`` 和 ``none`` 了。
+portHeader            --                如果配置了这个属性值，端口号会被存到每个event的header里面用这个属性配置的值当key。这样就可以在拦截器或者channel选择器里面根据端口号来自定义路由event的逻辑。
+charset.default       UTF-8             解析syslog使用的默认编码
+charset.port.<port>   --                针对具体某一个端口配置编码
+batchSize             100               每次请求尝试处理的最大event数量，通常用这个默认值就很好。
+readBufferSize        1024              内部Mina通信的读取缓冲区大小，用于性能调优，通常用默认值就很好。
+numProcessors         （自动分配）       处理消息时系统使用的处理器数量。 默认是使用Java Runtime API自动检测CPU数量。 Mina将为每个检测到的CPU核心生成2个请求处理线程，这通常是合理的。
+selector.type         replicating       可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*            --                channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors          --                该source所使用的拦截器，多个用空格分开
+interceptors.*                          拦截器相关的属性配
 ====================  ================  ==============================================
 
-For example, a multiport syslog TCP source for agent named a1:
+配置范例：
 
 .. code-block:: properties
 
@@ -1683,22 +1480,21 @@ Syslog UDP Source
 '''''''''''''''''
 
 ==============  ===========  ==============================================
-Property Name   Default      Description
+属性             默认值       解释
 ==============  ===========  ==============================================
-**channels**    --
-**type**        --           The component type name, needs to be ``syslogudp``
-**host**        --           Host name or IP address to bind to
-**port**        --           Port # to bind to
-keepFields      false        Setting this to true will preserve the Priority,
-                             Timestamp and Hostname in the body of the event.
-selector.type                replicating or multiplexing
-selector.*      replicating  Depends on the selector.type value
-interceptors    --           Space-separated list of interceptors
-interceptors.*
+**channels**    --           与Source绑定的channel，多个用空格分开
+**type**        --           组件名，这个是： ``syslogudp``
+**host**        --           要监听的hostname或者IP地址
+**port**        --           要监听的端口
+keepFields      false        设置为true后，解析syslog时会保留Priority, Timestamp and Hostname这些属性到event的消息体中（查看源码发现，实际上保留了priority、version、timestamp、hostname这四个字段在消息体的前面）
+selector.type   replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                   channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors    --           该source所使用的拦截器，多个用空格分开
+interceptors.*               拦截器相关的属性配       
 ==============  ===========  ==============================================
 
 
-For example, a syslog UDP source for agent named a1:
+配置范例：
 
 .. code-block:: properties
 
@@ -1711,39 +1507,34 @@ For example, a syslog UDP source for agent named a1:
 
 HTTP Source
 ~~~~~~~~~~~
-A source which accepts Flume Events by HTTP POST and GET. GET should be used
-for experimentation only. HTTP requests are converted into flume events by
-a pluggable "handler" which must implement the HTTPSourceHandler interface.
-This handler takes a HttpServletRequest and returns a list of
-flume events. All events handled from one Http request are committed to the channel
-in one transaction, thus allowing for increased efficiency on channels like
-the file channel. If the handler throws an exception, this source will
-return a HTTP status of 400. If the channel is full, or the source is unable to
-append events to the channel, the source will return a HTTP 503 - Temporarily
-unavailable status.
+这个Source从HTTP POST 和 GET请求里面解析 event，GET方式目前还只是实验性的。把HTTP请求解析成event是通过配置一个“handler”来实现的，这个“handler”必须实现 ``HTTPSourceHandler`` 接口，
+这个接口其实就一个方法，收到一个HttpServletRequest后解析出一个 event 的List。从一次请求解析出来的若干个event会以一个事务提交到channel，
+从而在诸如『文件channel』的一些channel上提高效率。如果handler抛出异常，这个HTTP的响应状态码是400。如果channel满了或者无法发送event到channel，此时会返回HTTP状态码503（服务暂时不可用）。
 
-All events sent in one post request are considered to be one batch and
-inserted into the channel in one transaction.
+在一个POST请求中发送的所有 event 视为一个批处理，并在一个事务中插入到 channel。
 
 =================  ============================================  =====================================================================================
-Property Name      Default                                       Description
+属性                默认值                                        解释
 =================  ============================================  =====================================================================================
-**type**                                                         The component type name, needs to be ``http``
-**port**           --                                            The port the source should bind to.
-bind               0.0.0.0                                       The hostname or IP address to listen on
-handler            ``org.apache.flume.source.http.JSONHandler``  The FQCN of the handler class.
-handler.*          --                                            Config parameters for the handler
-selector.type      replicating                                   replicating or multiplexing
-selector.*                                                       Depends on the selector.type value
-interceptors       --                                            Space-separated list of interceptors
-interceptors.*
-enableSSL          false                                         Set the property true, to enable SSL. *HTTP Source does not support SSLv3.*
-excludeProtocols   SSLv3                                         Space-separated list of SSL/TLS protocols to exclude. SSLv3 is always excluded.
-keystore                                                         Location of the keystore includng keystore file name
-keystorePassword                                                 Keystore password
+**channels**       --                                            与Source绑定的channel，多个用空格分开
+**type**                                                         组件名，这个是： ``http``
+**port**           --                                            要监听的端口
+bind               0.0.0.0                                       要监听的hostname或者IP地址
+handler            ``org.apache.flume.source.http.JSONHandler``  所使用的handler，需填写handler的全限定类名
+handler.*          --                                            handler的一些属性配置
+selector.type      replicating                                   可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                                                       channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors       --                                            该source所使用的拦截器，多个用空格分开
+interceptors.*                                                   拦截器相关的属性配
+enableSSL          false                                         设置为true启用SSL，HTTP Source不支持SSLv3协议
+excludeProtocols   SSLv3                                         指定不支持的协议，多个用空格分开，SSLv3不管是否配置都会被强制排除
+keystore                                                         keystore 文件的位置
+keystorePassword                                                 Keystore 的密码
 ======================================================================================================================================================
 
-For example, a http source for agent named a1:
+.. hint:: Flume里面很多组件都明确表示强制不支持SSLv3协议，是因为SSLv3协议的不安全，各大公司很早就已经不再支持了。
+
+配置范例：
 
 .. code-block:: properties
 
@@ -1757,13 +1548,8 @@ For example, a http source for agent named a1:
 
 JSONHandler
 '''''''''''
-A handler is provided out of the box which can handle events represented in
-JSON format, and supports UTF-8, UTF-16 and UTF-32 character sets. The handler
-accepts an array of events (even if there is only one event, the event has to be
-sent in an array) and converts them to a Flume event based on the
-encoding specified in the request. If no encoding is specified, UTF-8 is assumed.
-The JSON handler supports UTF-8, UTF-16 and UTF-32.
-Events are represented as follows.
+这是HTTP Source的默认解析器（handler），根据请求所使用的编码把http请求中json格式的数据解析成Flume Event数组（不管是一个还是多个，都以数组格式进行存储），
+如果未指定编码，默认使用UTF-8编码。这个handler支持UTF-8、UTF-16和UTF-32编码。json数据格式如下：
 
 .. code-block:: javascript
 
@@ -1782,15 +1568,9 @@ Events are represented as follows.
     "body" : "really_random_body"
     }]
 
-To set the charset, the request must have content type specified as
-``application/json; charset=UTF-8`` (replace UTF-8 with UTF-16 or UTF-32 as
-required).
+HTTP请求中设置编码必须是通过Content type来设置，application/json; charset=UTF-8(UTF-8 可以换成UTF-16 或者 UTF-32)。
 
-One way to create an event in the format expected by this handler is to
-use JSONEvent provided in the Flume SDK and use Google Gson to create the JSON
-string using the Gson#fromJson(Object, Type)
-method. The type token to pass as the 2nd argument of this method
-for list of events can be created by:
+一种创建这个handler使用的json格式对象 org.apache.flume.event.JSONEvent 的方法是使用Google Gson 库的Gson#fromJson(Object, Type) 方法创建json格式字符串，这个方法的第二个参数就是类型标记，用于指定event列表的类型，像下面这样创建：
 
 .. code-block:: java
 
@@ -1798,36 +1578,35 @@ for list of events can be created by:
 
 BlobHandler
 '''''''''''
-By default HTTPSource splits JSON input into Flume events. As an alternative, BlobHandler is a handler for HTTPSource that returns an event that contains the request parameters as well as the Binary Large Object (BLOB) uploaded with this request. For example a PDF or JPG file. Note that this approach is not suitable for very large objects because it buffers up the entire BLOB in RAM.
+默认情况下HTTPSource会把json处理成FlumeEvent。作为一个补充的选项BlobHandler 不仅支持返回请求中的参数也包含其中的二进制数据，比如PDF文件、jpg文件等。这种可以接收附件的处理器不适合处理非常大的文件，因为这些文件都是缓冲在内存里面的。
 
 =====================  ==================  ============================================================================
-Property Name          Default             Description
+属性                    默认值               解释
 =====================  ==================  ============================================================================
-**handler**            --                  The FQCN of this class: ``org.apache.flume.sink.solr.morphline.BlobHandler``
-handler.maxBlobLength  100000000           The maximum number of bytes to read and buffer for a given request
+**handler**            --                  这里填BlobHandler的全限定类名: ``org.apache.flume.sink.solr.morphline.BlobHandler``
+handler.maxBlobLength  100000000           每次请求的最大缓冲字节数
 =====================  ==================  ============================================================================
 
 Stress Source
 ~~~~~~~~~~~~~
 
-StressSource is an internal load-generating source implementation which is very useful for
-stress tests. It allows User to configure the size of Event payload, with empty headers.
-User can configure total number of events to be sent as well maximum number of Successful
-Event to be delivered.
+StressSource 是一个内部负载生成Source的实现， **对于压力测试非常有用** 。可以配置每个Event的大小（headers为空）、也可以配置总共发送Event数量以及发送成功的Event最大数量。
 
-Required properties are in **bold**.
+.. hint:: 这个Source跟Sequence Generator Source差不多，都是用来测试用的。
+
+必需的参数已用 **粗体** 标明。      
 
 ===================  ===========  ===================================================
-Property Name        Default      Description
+属性                  默认值       解释
 ===================  ===========  ===================================================
-**type**             --           The component type name, needs to be ``org.apache.flume.source.StressSource``
-size                 500          Payload size of each Event. Unit:**byte**
-maxTotalEvents       -1           Maximum number of Events to be sent
-maxSuccessfulEvents  -1           Maximum number of Events successfully sent
-batchSize            1            Number of Events to be sent in one batch
+**type**             --           组件名，这个是： ``org.apache.flume.source.StressSource``
+size                 500          每个event的大小。单位：字节（byte）
+maxTotalEvents       -1           总共会发送的Event数量
+maxSuccessfulEvents  -1           发送成功的Event最大数量
+batchSize            1            每次请求发送Event的数量
 ===================  ===========  ===================================================
 
-Example for agent named **a1**:
+配置范例：
 
 .. code-block:: properties
 
@@ -1840,43 +1619,33 @@ Example for agent named **a1**:
 
 Legacy Sources
 ~~~~~~~~~~~~~~
+Legacy Sources可以让Flume1.x版本的agent接收来自于Flume0.9.4版本的agent发来的Event，可以理解为连接两个版本Flume的一个“桥”。接收到0.9.4版本的Event后转换为1.x版本的Event然后发送到
+channel。0.9.4版本的Event属性（timestamp, pri, host, nanos, etc）会被转换到1.xEvent的header中。Legacy Sources支持Avro和Thrift RPC两种方式连接。具体的用法是1.x的agent可以使用 avroLegacy 
+或者 thriftLegacy source，然后0.9.4的agent需要指定sink的host和端口为1.x的 agent。
 
-The legacy sources allow a Flume 1.x agent to receive events from Flume 0.9.4
-agents. It accepts events in the Flume 0.9.4 format, converts them to the Flume
-1.0 format, and stores them in the connected channel. The 0.9.4 event
-properties like timestamp, pri, host, nanos, etc get converted to 1.x event
-header attributes. The legacy source supports both Avro and Thrift RPC
-connections. To use this bridge between two Flume versions, you need to start a
-Flume 1.x agent with the avroLegacy or thriftLegacy source. The 0.9.4 agent
-should have the agent Sink pointing to the host/port of the 1.x agent.
+.. note:: 1.x和0.9.x的可靠性保证有所不同。Legacy Sources并不支持0.9.x的E2E和DFO模式。唯一支持的是BE（best effort，尽力而为），尽管1.x的可靠性保证对于从0.9.x传输过来并且已经存在channel里面的Events是有效的。
 
-.. note:: The reliability semantics of Flume 1.x are different from that of
-          Flume 0.9.x. The E2E or DFO mode of a Flume 0.9.x agent will not be
-          supported by the legacy source. The only supported 0.9.x mode is the
-          best effort, though the reliability setting of the 1.x flow will be
-          applicable to the events once they are saved into the Flume 1.x
-          channel by the legacy source.
+.. hint:: 虽然数据进入了Flume 1.x的channel之后是适用1.x的可靠性保证，但是从0.9.x到1.x的时候只是BE保证，既然只有BE的保证，也就是说Legacy Sources不算是可靠的传输。对于这种跨版本的部署使用行为要慎重。
 
-Required properties are in **bold**.
-
+必需的参数已用 **粗体** 标明。      
 
 Avro Legacy Source
 ''''''''''''''''''
 
 ==============  ===========  ========================================================================================
-Property Name   Default      Description
+属性             默认值       解释
 ==============  ===========  ========================================================================================
-**channels**    --
-**type**        --           The component type name, needs to be ``org.apache.flume.source.avroLegacy.AvroLegacySource``
-**host**        --           The hostname or IP address to bind to
-**port**        --           The port # to listen on
-selector.type                replicating or multiplexing
-selector.*      replicating  Depends on the selector.type value
-interceptors    --           Space-separated list of interceptors
-interceptors.*
+**channels**    --           与Source绑定的channel，多个用空格分开
+**type**        --           组件名，这个是： ``org.apache.flume.source.avroLegacy.AvroLegacySource``
+**host**        --           要监听的hostname或者IP地址
+**port**        --           要监听的端口
+selector.type   replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                   channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors    --           该source所使用的拦截器，多个用空格分开
+interceptors.*               拦截器相关的属性配
 ==============  ===========  ========================================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -1891,19 +1660,19 @@ Thrift Legacy Source
 ''''''''''''''''''''
 
 ==============  ===========  ======================================================================================
-Property Name   Default      Description
+属性             默认值       解释
 ==============  ===========  ======================================================================================
-**channels**    --
-**type**        --           The component type name, needs to be ``org.apache.flume.source.thriftLegacy.ThriftLegacySource``
-**host**        --           The hostname or IP address to bind to
-**port**        --           The port # to listen on
-selector.type                replicating or multiplexing
-selector.*      replicating  Depends on the selector.type value
-interceptors    --           Space-separated list of interceptors
-interceptors.*
+**channels**    --           与Source绑定的channel，多个用空格分开
+**type**        --           组件名，这个是： ``org.apache.flume.source.thriftLegacy.ThriftLegacySource``
+**host**        --           要监听的hostname或者IP地址
+**port**        --           要监听的端口
+selector.type                可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*      replicating  channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors    --           该source所使用的拦截器，多个用空格分开
+interceptors.*               拦截器相关的属性配
 ==============  ===========  ======================================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -1917,22 +1686,23 @@ Example for agent named a1:
 Custom Source
 ~~~~~~~~~~~~~
 
-A custom source is your own implementation of the Source interface. A custom
-source's class and its dependencies must be included in the agent's classpath
-when starting the Flume agent. The type of the custom source is its FQCN.
+你可以自己写一个Source接口的实现类。启动Flume时候必须把你自定义Source所依赖的其他类配置进agent的classpath内。custom source在写配置文件的type时候填你的全限定类名。
+
+.. hint:: 如果前面章节的那些Source都无法满足你的需求，你可以写一个自定义的Source，与你见过的其他框架的自定义组件写法如出一辙，实现个接口而已，然后把你写的类打成jar包，连同依赖的jar包一同配置进Flume的classpath。
+          后面章节中的自定义Sink、自定义Channel等都是一样的步骤，不会再赘述。
 
 ==============  ===========  ==============================================
-Property Name   Default      Description
+属性             默认值       解释
 ==============  ===========  ==============================================
-**channels**    --
-**type**        --           The component type name, needs to be your FQCN
-selector.type                ``replicating`` or ``multiplexing``
-selector.*      replicating  Depends on the selector.type value
-interceptors    --           Space-separated list of interceptors
-interceptors.*
+**channels**    --           与Source绑定的channel，多个用空格分开
+**type**        --           组件名，这个填你自己Source的全限定类名
+selector.type   replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                   channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+interceptors    --           该source所使用的拦截器，多个用空格分开
+interceptors.*               拦截器相关的属性配
 ==============  ===========  ==============================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -1944,23 +1714,25 @@ Example for agent named a1:
 Scribe Source
 ~~~~~~~~~~~~~
 
-Scribe is another type of ingest system. To adopt existing Scribe ingest system,
-Flume should use ScribeSource based on Thrift with compatible transfering protocol.
-For deployment of Scribe please follow the guide from Facebook.
-Required properties are in **bold**.
+.. hint:: 这里先说一句，Scribe是Facebook出的一个实时的日志聚合系统，我在之前没有听说过也没有使用过它，
+          从Scribe项目的Github文档里面了解到它在2013年就已经停止更新和支持了，貌似现在已经没有新的用户选择使用它了，所以Scribe Source这一节了解一下就行了。
 
-====================  ===========  ==============================================
-Property Name         Default      Description
-====================  ===========  ==============================================
-**type**              --           The component type name, needs to be ``org.apache.flume.source.scribe.ScribeSource``
-port                  1499         Port that Scribe should be connected
-maxReadBufferBytes    16384000     Thrift Default FrameBuffer Size
-workerThreads         5            Handing threads number in Thrift
-selector.type
-selector.*
-====================  ===========  ==============================================
+Scribe 是另外一个类似于flume的数据收集系统。为了对接现有的Scribe可以使用ScribeSource ，它是基于Thrift 的兼容传输协议，如何部署Scribe请参考Facebook提供的文档。
 
-Example for agent named a1:
+必需的参数已用 **粗体** 标明。      
+
+====================  ===========  ===================================================================
+属性                   默认值       解释
+====================  ===========  ===================================================================
+**type**              --           组件名，这个是： ``org.apache.flume.source.scribe.ScribeSource``
+port                  1499         Scribe 的端口
+maxReadBufferBytes    16384000     Thrift 默认的FrameBuffer 大小
+workerThreads         5            Thrift的线程数
+selector.type                      可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
+selector.*                         channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
+====================  ===========  ===================================================================
+
+配置范例：   
 
 .. code-block:: properties
 
@@ -1977,114 +1749,97 @@ Flume Sinks
 HDFS Sink
 ~~~~~~~~~
 
-This sink writes events into the Hadoop Distributed File System (HDFS). It
-currently supports creating text and sequence files. It supports compression in
-both file types. The files can be rolled (close current file and create a new
-one) periodically based on the elapsed time or size of data or number of events.
-It also buckets/partitions data by attributes like timestamp or machine
-where the event originated. The HDFS directory path may contain formatting
-escape sequences that will replaced by the HDFS sink to generate a
-directory/file name to store the events. Using this sink requires hadoop to be
-installed so that Flume can use the Hadoop jars to communicate with the HDFS
-cluster. Note that a version of Hadoop that supports the sync() call is
-required.
+这个接收器将event写入Hadoop分布式文件系统（也就是HDFS）。 目前支持创建文本和序列文件。 它支持两种文件类型的压缩。 可以根据写入的时间、文件大小或event数量定期滚动文件（关闭当前文件并创建新文件）。
+ 它还可以根据event自带的时间戳或系统时间等属性对数据进行分区。 存储文件的HDFS目录路径可以使用格式转义符，会由HDFS接收器进行动态地替换，以生成用于存储event的目录或文件名。 使用此接收器需要安装hadoop，
+ 以便Flume可以使用Hadoop的客户端与HDFS集群进行通信。 注意，** 需要使用支持sync() 调用的Hadoop版本** 。
 
-The following are the escape sequences supported:
+以下是支持的转义符：
 
 ===============  =================================================
-Alias            Description
+转义符            解释
 ===============  =================================================
-%{host}          Substitute value of event header named "host". Arbitrary header names are supported.
-%t               Unix time in milliseconds
-%a               locale's short weekday name (Mon, Tue, ...)
-%A               locale's full weekday name (Monday, Tuesday, ...)
-%b               locale's short month name (Jan, Feb, ...)
-%B               locale's long month name (January, February, ...)
-%c               locale's date and time (Thu Mar 3 23:05:25 2005)
-%d               day of month (01)
-%e               day of month without padding (1)
-%D               date; same as %m/%d/%y
-%H               hour (00..23)
-%I               hour (01..12)
-%j               day of year (001..366)
-%k               hour ( 0..23)
-%m               month (01..12)
-%n               month without padding (1..12)
-%M               minute (00..59)
-%p               locale's equivalent of am or pm
-%s               seconds since 1970-01-01 00:00:00 UTC
-%S               second (00..59)
-%y               last two digits of year (00..99)
-%Y               year (2010)
-%z               +hhmm numeric timezone (for example, -0400)
-%[localhost]     Substitute the hostname of the host where the agent is running
-%[IP]            Substitute the IP address of the host where the agent is running
-%[FQDN]          Substitute the canonical hostname of the host where the agent is running
+%{host}          event header中key为host的值。这个host可以是任意的key，只要header中有就能读取，比如%{aabc}将读取header中key为aabc的值
+%t               毫秒值的时间戳（同 System.currentTimeMillis() 方法）
+%a               星期的缩写（Mon、Tue等）
+%A               星期的全拼（Monday、 Tuesday等）
+%b               月份的缩写（Jan、 Feb等）
+%B               月份的全拼（January、February等）
+%c               日期和时间（Thu Feb 14 23:05:25 2019）
+%d               月份中的天（00到31）
+%e               月份中的天（1到31）
+%D               日期，与%m/%d/%y相同 ，例如：02/09/19
+%H               小时（00到23）
+%I               小时（01到12）
+%j               年中的天数（001到366）
+%k               小时（0到23），注意跟 ``%H`` 的区别
+%m               月份（01到12
+%n               月份（1到12）
+%M               分钟（00到59）
+%p               am或者pm
+%s               unix时间戳，是秒值。比如：2019/2/14 18:15:49的unix时间戳是：1550139349
+%S               秒（00到59）
+%y               一年中的最后两位数（00到99），比如1998年的%y就是98
+%Y               年（2010这种格式）
+%z               数字时区（比如：-0400）
+%[localhost]     agent实例所在主机的hostname
+%[IP]            agent实例所在主机的IP
+%[FQDN]          agent实例所在主机的规范hostname
 ===============  =================================================
 
-Note: The escape strings %[localhost], %[IP] and %[FQDN] all rely on Java's ability to obtain the
-hostname, which may fail in some networking environments.
+.. note:: %[localhost], %[IP] and %[FQDN]这三个转义符实际上都是用java的API来获取的，在一些网络环境下可能会获取失败。
 
-The file in use will have the name mangled to include ".tmp" at the end. Once
-the file is closed, this extension is removed. This allows excluding partially
-complete files in the directory.
-Required properties are in **bold**.
+正在打开的文件会在名称末尾加上“.tmp”的后缀。文件关闭后，会自动删除此扩展名。这样容易排除目录中的那些已完成的文件。
+必需的参数已用 **粗体** 标明。      
 
-.. note:: For all of the time related escape sequences, a header with the key
-          "timestamp" must exist among the headers of the event (unless ``hdfs.useLocalTimeStamp`` is set to ``true``). One way to add
-          this automatically is to use the TimestampInterceptor.
+.. note:: 对于所有与时间相关的转义字符，event header中必须存在带有“timestamp”键的属性（除非 ``hdfs.useLocalTimeStamp`` 设置为true）。快速自动添加此时间戳的一种方法是使用 `时间戳添加拦截器`_（ TimestampInterceptor）。
 
 ======================  ============  ======================================================================
-Name                    Default       Description
+属性名                   默认值        解释
 ======================  ============  ======================================================================
-**channel**             --
-**type**                --            The component type name, needs to be ``hdfs``
-**hdfs.path**           --            HDFS directory path (eg hdfs://namenode/flume/webdata/)
-hdfs.filePrefix         FlumeData     Name prefixed to files created by Flume in hdfs directory
-hdfs.fileSuffix         --            Suffix to append to file (eg ``.avro`` - *NOTE: period is not automatically added*)
-hdfs.inUsePrefix        --            Prefix that is used for temporal files that flume actively writes into
-hdfs.inUseSuffix        ``.tmp``      Suffix that is used for temporal files that flume actively writes into
-hdfs.rollInterval       30            Number of seconds to wait before rolling current file
-                                      (0 = never roll based on time interval)
-hdfs.rollSize           1024          File size to trigger roll, in bytes (0: never roll based on file size)
-hdfs.rollCount          10            Number of events written to file before it rolled
-                                      (0 = never roll based on number of events)
-hdfs.idleTimeout        0             Timeout after which inactive files get closed
-                                      (0 = disable automatic closing of idle files)
-hdfs.batchSize          100           number of events written to file before it is flushed to HDFS
-hdfs.codeC              --            Compression codec. one of following : gzip, bzip2, lzo, lzop, snappy
-hdfs.fileType           SequenceFile  File format: currently ``SequenceFile``, ``DataStream`` or ``CompressedStream``
-                                      (1)DataStream will not compress output file and please don't set codeC
-                                      (2)CompressedStream requires set hdfs.codeC with an available codeC
-hdfs.maxOpenFiles       5000          Allow only this number of open files. If this number is exceeded, the oldest file is closed.
-hdfs.minBlockReplicas   --            Specify minimum number of replicas per HDFS block. If not specified, it comes from the default Hadoop config in the classpath.
-hdfs.writeFormat        Writable      Format for sequence file records. One of ``Text`` or ``Writable``. Set to ``Text`` before creating data files with Flume, otherwise those files cannot be read by either Apache Impala (incubating) or Apache Hive.
-hdfs.callTimeout        10000         Number of milliseconds allowed for HDFS operations, such as open, write, flush, close.
-                                      This number should be increased if many HDFS timeout operations are occurring.
-hdfs.threadsPoolSize    10            Number of threads per HDFS sink for HDFS IO ops (open, write, etc.)
-hdfs.rollTimerPoolSize  1             Number of threads per HDFS sink for scheduling timed file rolling
-hdfs.kerberosPrincipal  --            Kerberos user principal for accessing secure HDFS
-hdfs.kerberosKeytab     --            Kerberos keytab for accessing secure HDFS
-hdfs.proxyUser
-hdfs.round              false         Should the timestamp be rounded down (if true, affects all time based escape sequences except %t)
-hdfs.roundValue         1             Rounded down to the highest multiple of this (in the unit configured using ``hdfs.roundUnit``), less than current time.
-hdfs.roundUnit          second        The unit of the round down value - ``second``, ``minute`` or ``hour``.
-hdfs.timeZone           Local Time    Name of the timezone that should be used for resolving the directory path, e.g. America/Los_Angeles.
-hdfs.useLocalTimeStamp  false         Use the local time (instead of the timestamp from the event header) while replacing the escape sequences.
-hdfs.closeTries         0             Number of times the sink must try renaming a file, after initiating a close attempt. If set to 1, this sink will not re-try a failed rename
-                                      (due to, for example, NameNode or DataNode failure), and may leave the file in an open state with a .tmp extension.
-                                      If set to 0, the sink will try to rename the file until the file is eventually renamed (there is no limit on the number of times it would try).
-                                      The file may still remain open if the close call fails but the data will be intact and in this case, the file will be closed only after a Flume restart.
-hdfs.retryInterval      180           Time in seconds between consecutive attempts to close a file. Each close call costs multiple RPC round-trips to the Namenode,
-                                      so setting this too low can cause a lot of load on the name node. If set to 0 or less, the sink will not
-                                      attempt to close the file if the first attempt fails, and may leave the file open or with a ".tmp" extension.
-serializer              ``TEXT``      Other possible options include ``avro_event`` or the
-                                      fully-qualified class name of an implementation of the
-                                      ``EventSerializer.Builder`` interface.
-serializer.*
+**channel**             --            与 Sink 连接的 channel
+**type**                --            组件名，这个是： ``hdfs``
+**hdfs.path**           --            HDFS目录路径（例如：hdfs://namenode/flume/webdata/）
+hdfs.filePrefix         FlumeData     Flume在HDFS文件夹下创建新文件的固定前缀
+hdfs.fileSuffix         --            Flume在HDFS文件夹下创建新文件的后缀（比如：.avro，注意这个“.”不会自动添加，需要显式配置）
+hdfs.inUsePrefix        --            Flume正在写入的临时文件前缀，默认没有
+hdfs.inUseSuffix        ``.tmp``      Flume正在写入的临时文件后缀
+hdfs.rollInterval       30            当前文件写入达到该值时间后触发滚动创建新文件（0表示不按照时间来分割文件），单位：秒
+hdfs.rollSize           1024          当前文件写入达到该大小后触发滚动创建新文件（0表示不根据文件大小来分割文件），单位：字节
+hdfs.rollCount          10            当前文件写入event达到该数量后触发滚动创建新文件（0表示不根据 event 数量来分割文件）
+hdfs.idleTimeout        0             关闭非活动文件的超时时间（0表示禁用自动关闭文件），单位：秒
+hdfs.batchSize          100           向 HDFS 写入内容时每次批量操作的 event 数量
+hdfs.codeC              --            压缩算法。可选值：``gzip`` 、 ``bzip2`` 、 ``lzo`` 、 ``lzop` 、 ``snappy``
+hdfs.fileType           SequenceFile  文件格式，目前支持： ``SequenceFile`` 、 ``DataStream`` 、 ``CompressedStream`` 。
+                                      1. ``DataStream`` 不会压缩文件，不需要设置hdfs.codeC
+                                      2. ``CompressedStream`` 必须设置hdfs.codeC参数
+hdfs.maxOpenFiles       5000          允许打开的最大文件数，如果超过这个数量，最先打开的文件会被关闭
+hdfs.minBlockReplicas   --            指定每个HDFS块的最小副本数。 如果未指定，则使用 classpath 中 Hadoop 的默认配置。
+hdfs.writeFormat        Writable      文件写入格式。可选值： ``Text`` 、 ``Writable`` 。在使用 Flume 创建数据文件之前设置为 ``Text``，否则 Apache Impala（孵化）或 Apache Hive 无法读取这些文件。
+hdfs.callTimeout        10000         允许HDFS操作文件的时间，比如：open、write、flush、close。如果HDFS操作超时次数增加，应该适当调高这个这个值。单位：毫秒。
+hdfs.threadsPoolSize    10            每个HDFS接收器实例操作HDFS IO时开启的线程数（open、write 等）
+hdfs.rollTimerPoolSize  1             每个HDFS接收器实例调度定时文件滚动的线程数
+hdfs.kerberosPrincipal  --            用于安全访问 HDFS 的 Kerberos 用户主体
+hdfs.kerberosKeytab     --            用于安全访问 HDFS 的 Kerberos keytab 文件
+hdfs.proxyUser                        代理名
+hdfs.round              false         是否应将时间戳向下舍入（如果为true，则影响除 ``%t`` 之外的所有基于时间的转义符）
+hdfs.roundValue         1             向下舍入（小于当前时间）的这个值的最高倍（单位取决于下面的 ``hdfs.roundUnit`` ）
+                                      例子：假设当前时间戳是18:32:01，``hdfs.roundUnit=minute``
+                                      如果roundValue=5，则时间戳会取为：18:30
+                                      如果roundValue=7，则时间戳会取为：18:28
+                                      如果roundValue=10，则时间戳会取为：18:30
+hdfs.roundUnit          second        向下舍入的单位，可选值： ``second`` 、 ``minute`` 、 ``hour``
+hdfs.timeZone           Local Time    解析存储目录路径时候所使用的时区名，例如：America/Los_Angeles、Asia/Shanghai
+hdfs.useLocalTimeStamp  false         使用日期时间转义符时是否使用本地时间戳（而不是使用 event header 中自带的时间戳）
+hdfs.closeTries         0             开始尝试关闭文件时最大的重命名文件的尝试次数（因为打开的文件通常都有个.tmp的后缀，写入结束关闭文件时要重命名把后缀去掉）。
+                                      如果设置为1，接收器在重命名失败（可能是因为 NameNode 或 DataNode 发生错误）后不会重试，这样就导致了这个文件会一直保持为打开状态，并且带着.tmp的后缀；
+                                      如果设置为0，接收器会一直尝试重命名文件直到成功为止；
+                                      关闭文件操作失败时这个文件可能仍然是打开状态，这种情况数据还是完整的不会丢失，只有在Flume重启后文件才会关闭。
+hdfs.retryInterval      180           连续尝试关闭文件的时间间隔（秒）。 每次关闭操作都会调用多次 RPC 往返于 Namenode ，因此将此设置得太低会导致 Namenode 上产生大量负载。 如果设置为0或更小，则如果第一次尝试失败，将不会再尝试关闭文件，并且可能导致文件保持打开状态或扩展名为“.tmp”。
+serializer              ``TEXT``      event 转为文件使用的序列化器。其他可选值有： ``avro_event`` 或其他 ``EventSerializer.Builderinterface`` 接口的实现类的全限定类名。所有 Flume 内置的序列化器可参考 `Event 序列化器`_ 一节。
+serializer.*                          根据上面 ``serializer`` 配置的类型来根据需要添加序列化器的参数
 ======================  ============  ======================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2098,115 +1853,95 @@ Example for agent named a1:
   a1.sinks.k1.hdfs.roundValue = 10
   a1.sinks.k1.hdfs.roundUnit = minute
 
-The above configuration will round down the timestamp to the last 10th minute. For example, an event with
-timestamp 11:54:34 AM, June 12, 2012 will cause the hdfs path to become ``/flume/events/2012-06-12/1150/00``.
+上面的例子中时间戳会向前一个整10分钟取整。比如，一个 event 的 header 中带的时间戳是11:54:34 AM, June 12, 2012，它会保存的 HDFS 路径就是/flume/events/2012-06-12/1150/00。
 
 
 Hive Sink
 ~~~~~~~~~
 
-This sink streams events containing delimited text or JSON data directly into a Hive table or partition.
-Events are written using Hive transactions. As soon as a set of events are committed to Hive, they become
-immediately visible to Hive queries. Partitions to which flume will stream to can either be pre-created
-or, optionally, Flume can create them if they are missing. Fields from incoming event data are mapped to
-corresponding columns in the Hive table.
+此接收器将包含分隔文本或JSON数据的 event 直接流式传输到 Hive表或分区上。 event 使用 Hive事务进行写入， 一旦将一组 event 提交给Hive，它们就会立即显示给Hive查询。 
+即将写入的目标分区既可以预先自己创建，也可以选择让 Flume 创建它们，如果没有的话。 写入的 event 数据中的字段将映射到 Hive表中的相应列。
 
-======================    ============  ======================================================================
-Name                      Default       Description
-======================    ============  ======================================================================
-**channel**               --
-**type**                  --            The component type name, needs to be ``hive``
-**hive.metastore**        --            Hive metastore URI (eg thrift://a.b.com:9083 )
-**hive.database**         --            Hive database name
-**hive.table**            --            Hive table name
-hive.partition            --            Comma separate list of partition values identifying the partition to write to. May contain escape
-                                        sequences. E.g: If the table is partitioned by (continent: string, country :string, time : string)
-                                        then 'Asia,India,2014-02-26-01-21' will indicate continent=Asia,country=India,time=2014-02-26-01-21
-hive.txnsPerBatchAsk      100           Hive grants a *batch of transactions* instead of single transactions to streaming clients like Flume.
-                                        This setting configures the number of desired transactions per Transaction Batch. Data from all
-                                        transactions in a single batch end up in a single file. Flume will write a maximum of batchSize events
-                                        in each transaction in the batch. This setting in conjunction with batchSize provides control over the
-                                        size of each file. Note that eventually Hive will transparently compact these files into larger files.
-heartBeatInterval         240           (In seconds) Interval between consecutive heartbeats sent to Hive to keep unused transactions from expiring.
-                                        Set this value to 0 to disable heartbeats.
-autoCreatePartitions      true          Flume will automatically create the necessary Hive partitions to stream to
-batchSize                 15000         Max number of events written to Hive in a single Hive transaction
-maxOpenConnections        500           Allow only this number of open connections. If this number is exceeded, the least recently used connection is closed.
-callTimeout               10000         (In milliseconds) Timeout for Hive & HDFS I/O operations, such as openTxn, write, commit, abort.
-**serializer**                          Serializer is responsible for parsing out field from the event and mapping them to columns in the hive table.
-                                        Choice of serializer depends upon the format of the data in the event. Supported serializers: DELIMITED and JSON
-roundUnit                 minute        The unit of the round down value - ``second``, ``minute`` or ``hour``.
-roundValue                1             Rounded down to the highest multiple of this (in the unit configured using hive.roundUnit), less than current time
-timeZone                  Local Time    Name of the timezone that should be used for resolving the escape sequences in partition, e.g. America/Los_Angeles.
-useLocalTimeStamp         false         Use the local time (instead of the timestamp from the event header) while replacing the escape sequences.
-======================    ============  ======================================================================
+======================    ===============  ======================================================================
+属性                       默认值           解释
+======================    ===============  ======================================================================
+**channel**               --               与 Sink 连接的 channel
+**type**                  --               组件名，这个是： ``hive``
+**hive.metastore**        --               Hive metastore URI (eg thrift://a.b.com:9083 )
+**hive.database**         --               Hive 数据库名
+**hive.table**            --               Hive表名
+hive.partition            --               逗号分隔的要写入的分区信息。
+                                           比如hive表的分区是（continent: string, country :string, time : string），
+                                           那么“Asia,India,2014-02-26-01-21”就表示数据会写入到continent=Asia,country=India,time=2014-02-26-01-21这个分区。
+hive.txnsPerBatchAsk      100              Hive从Flume等客户端接收数据流会使用多次事务来操作，而不是只开启一个事务。这个参数指定处理每次请求所开启的事务数量。来自同一个批次中所有事务中的数据最终都在一个文件中。
+                                           Flume会向每个事务中写入 ``batchSize`` 个 event，这个参数和 ``batchSize`` 一起控制着每个文件的大小，请注意，Hive最终会将这些文件压缩成一个更大的文件。
+heartBeatInterval         240              发送到 Hive 的连续心跳检测间隔（秒），以防止未使用的事务过期。设置为0表示禁用心跳。
+autoCreatePartitions      true             Flume 会自动创建必要的 Hive分区以进行流式传输
+batchSize                 15000            写入一个 Hive事务中最大的 event 数量
+maxOpenConnections        500              允许打开的最大连接数。如果超过此数量，则关闭最近最少使用的连接。
+callTimeout               10000            Hive、HDFS I/O操作的超时时间（毫秒），比如：开启事务、写数据、提交事务、取消事务。
+**serializer**                             序列化器负责解析 event 中的字段并把它们映射到 Hive表中的列，选择哪种序列化器取决于 event 中的数据格式，支持的序列化器有：``DELIMITED`` 和 ``JSON``
+round                     false            是否启用时间戳舍入机制
+roundUnit                 minute           舍入值的单位，可选值：``second`` 、 ``minute`` 、 ``hour``
+roundValue                1                舍入到小于当前时间的最高倍数（使用 ``roundUnit`` 配置的单位）
+                                           例子1：roundUnit=second，roundValue=10，则14:31:18这个时间戳会被舍入到14:31:10;
+                                           例子2：roundUnit=second，roundValue=30，则14:31:18这个时间戳会被舍入到14:31:00，14:31:42这个时间戳会被舍入到14:31:30;
+                                          （上面例子中时间戳没有包含年月日，明白这个意思就行了）
+timeZone                  Local Time       应用于解析分区中转义序列的时区名称，比如：America/Los_Angeles、Asia/Shanghai、Asia/Tokyo等
+useLocalTimeStamp         false            替换转义序列时是否使用本地时间戳（否则使用event header中的timestamp ）
+======================    ===============  ======================================================================
 
-Following serializers are provided for Hive sink:
+下面介绍Hive Sink的两个序列化器：
 
-**JSON**: Handles UTF8 encoded Json (strict syntax) events and requires no configration. Object names
-in the JSON are mapped directly to columns with the same name in the Hive table.
-Internally uses org.apache.hive.hcatalog.data.JsonSerDe but is independent of the Serde of the Hive table.
-This serializer requires HCatalog to be installed.
+**JSON** ：处理UTF8编码的 Json 格式（严格语法）event，不需要配置。 JSON中的对象名称直接映射到Hive表中具有相同名称的列。 内部使用 ``org.apache.hive.hcatalog.data.JsonSerDe`` ，但独立于 Hive表的 ``Serde`` 。 
+此序列化程序需要安装 HCatalog。
 
-**DELIMITED**: Handles simple delimited textual events.
-Internally uses LazySimpleSerde but is independent of the Serde of the Hive table.
+**DELIMITED**: 处理简单的分隔文本 event。 内部使用 LazySimpleSerde，但独立于 Hive表的 Serde。
 
 ==========================    ============  ======================================================================
-Name                          Default       Description
+属性                           默认值        解释
 ==========================    ============  ======================================================================
-serializer.delimiter          ,             (Type: string) The field delimiter in the incoming data. To use special
-                                            characters, surround them with double quotes like "\\t"
-**serializer.fieldnames**     --            The mapping from input fields to columns in hive table. Specified as a
-                                            comma separated list (no spaces) of hive table columns names, identifying
-                                            the input fields in order of their occurrence. To skip fields leave the
-                                            column name unspecified. Eg. 'time,,ip,message' indicates the 1st, 3rd
-                                            and 4th fields in input map to time, ip and message columns in the hive table.
-serializer.serdeSeparator     Ctrl-A        (Type: character) Customizes the separator used by underlying serde. There
-                                            can be a gain in efficiency if the fields in serializer.fieldnames are in
-                                            same order as table columns, the serializer.delimiter is same as the
-                                            serializer.serdeSeparator and number of fields in serializer.fieldnames
-                                            is less than or equal to number of table columns, as the fields in incoming
-                                            event body do not need to be reordered to match order of table columns.
-                                            Use single quotes for special characters like '\\t'.
-                                            Ensure input fields do not contain this character. NOTE: If serializer.delimiter
-                                            is a single character, preferably set this to the same character
+serializer.delimiter          ,             （类型：字符串）传入数据中的字段分隔符。 要使用特殊字符，请用双引号括起来，例如“\\t”
+**serializer.fieldnames**     --            从输入字段到Hive表中的列的映射。 指定为Hive表列名称的逗号分隔列表（无空格），按顺序标识输入字段。 
+                                            要跳过字段，请保留未指定的列名称。 例如， 'time,,ip,message'表示输入映射到hive表中的 time，ip 和 message 列的第1，第3和第4个字段。
+serializer.serdeSeparator     Ctrl-A        （类型：字符）自定义底层序列化器的分隔符。如果 ``serializer.fieldnames`` 中的字段与 Hive表列的顺序相同，则 ``serializer.delimiter`` 与 ``serializer.serdeSeparator`` 相同，
+                                            并且 ``serializer.fieldnames`` 中的字段数小于或等于表的字段数量，可以提高效率，因为传入 event 正文中的字段不需要重新排序以匹配 Hive表列的顺序。 
+                                            对于'\\t'这样的特殊字符使用单引号，要确保输入字段不包含此字符。 注意：如果 ``serializer.delimiter`` 是单个字符，最好将本参数也设置为相同的字符。
 ==========================    ============  ======================================================================
 
 
-The following are the escape sequences supported:
+以下是支持的转义符：
 
 =========  =================================================
-Alias      Description
+转义符      解释
 =========  =================================================
-%{host}    Substitute value of event header named "host". Arbitrary header names are supported.
-%t         Unix time in milliseconds
-%a         locale's short weekday name (Mon, Tue, ...)
-%A         locale's full weekday name (Monday, Tuesday, ...)
-%b         locale's short month name (Jan, Feb, ...)
-%B         locale's long month name (January, February, ...)
-%c         locale's date and time (Thu Mar 3 23:05:25 2005)
-%d         day of month (01)
-%D         date; same as %m/%d/%y
-%H         hour (00..23)
-%I         hour (01..12)
-%j         day of year (001..366)
-%k         hour ( 0..23)
-%m         month (01..12)
-%M         minute (00..59)
-%p         locale's equivalent of am or pm
-%s         seconds since 1970-01-01 00:00:00 UTC
-%S         second (00..59)
-%y         last two digits of year (00..99)
-%Y         year (2010)
-%z         +hhmm numeric timezone (for example, -0400)
+%{host}    event header中 key 为 host 的值。这个 host 可以是任意的 key，只要 header 中有就能读取，比如%{aabc}将读取 header 中 key 为 aabc 的值
+%t         毫秒值的时间戳（同 System.currentTimeMillis() 方法）
+%a         星期的缩写（Mon、Tue等）
+%A         星期的全拼（Monday、 Tuesday等）
+%b         月份的缩写（Jan、 Feb等）
+%B         月份的全拼（January、February等）
+%c         日期和时间（Thu Feb 14 23:05:25 2019）
+%d         月份中的天（00到31）
+%D         日期，与%m/%d/%y相同 ，例如：02/09/19
+%H         小时（00到23）
+%I         小时（01到12）
+%j         年中的天数（001到366）
+%k         小时（0到23），注意跟 ``%H`` 的区别
+%m         月份（01到12）
+%M         分钟（00到59）
+%p         am 或者 pm
+%s         unix时间戳，是秒值。比如：2019/4/1 15:12:47 的unix时间戳是：1554102767
+%S         秒（00到59）
+%y         一年中的最后两位数（00到99），比如1998年的%y就是98
+%Y         年（2010这种格式）
+%z         数字时区（比如：-0400）
 =========  =================================================
 
 
-.. note:: For all of the time related escape sequences, a header with the key
-          "timestamp" must exist among the headers of the event (unless ``useLocalTimeStamp`` is set to ``true``). One way to add
-          this automatically is to use the TimestampInterceptor.
+.. note:: 对于所有与时间相关的转义字符，event header 中必须存在带有“timestamp”键的属性（除非 ``useLocalTimeStamp`` 设置为true）。快速添加此时间戳的一种方法是使用 `时间戳添加拦截器`_ （ TimestampInterceptor）。
 
-Example Hive table :
+假设Hive表如下：
 
 .. code-block:: properties
 
@@ -2215,7 +1950,7 @@ Example Hive table :
      clustered by (id) into 5 buckets
      stored as orc;
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2238,28 +1973,27 @@ Example for agent named a1:
  a1.sinks.k1.serializer.fieldnames =id,,msg
 
 
-The above configuration will round down the timestamp to the last 10th minute. For example, an event with
-timestamp header set to 11:54:34 AM, June 12, 2012 and 'country' header set to 'india' will evaluate to the
-partition (continent='asia',country='india',time='2012-06-12-11-50'. The serializer is configured to
-accept tab separated input containing three fields and to skip the second field.
+以上配置会将时间戳向下舍入到最后10分钟。 例如，将时间戳标头设置为2019年4月1日下午15:21:34且“country”标头设置为“india”的event将评估为分区（continent ='asia'，country ='india'，time ='2019-04-01-15-20'。序列化程序配置为接收包含三个字段的制表符分隔的输入并跳过第二个字段。
 
 
 Logger Sink
 ~~~~~~~~~~~
 
-Logs event at INFO level. Typically useful for testing/debugging purpose. Required properties are
-in **bold**. This sink is the only exception which doesn't require the extra configuration
-explained in the `Logging raw data`_ section.
+使用INFO级别把event内容输出到日志中，一般用来测试、调试使用。这个 Sink 是唯一一个不需要额外配置就能把 event 的原始内容输出的Sink，参照 `输出原始数据到日志`_ 。
 
-==============  =======  ===========================================
-Property Name   Default  Description
-==============  =======  ===========================================
-**channel**     --
-**type**        --       The component type name, needs to be ``logger``
-maxBytesToLog   16       Maximum number of bytes of the Event body to log
-==============  =======  ===========================================
+.. hint:: 在 `输出原始数据到日志`_ 一节中说过，通常在运行日志里面输出原始的日志内容是非常不可取的，所以 Flume 的组件默认都不会这么做。但是总有特殊的情况想要把 event 内容打印出来，就可以借助这个Logger Sink了。
 
-Example for agent named a1:
+必需的参数已用 **粗体** 标明。 
+
+==============  =========  ===========================================
+属性             默认值     解释
+==============  =========  ===========================================
+**channel**     --         与 Sink 绑定的 channel
+**type**        --         组件名，这个是： ``logger``
+maxBytesToLog   16         event body 输出到日志的最大字节数（超出的部分会被丢弃）
+==============  =========  ===========================================
+
+配置范例：   
 
 .. code-block:: properties
 
@@ -2271,35 +2005,35 @@ Example for agent named a1:
 Avro Sink
 ~~~~~~~~~
 
-This sink forms one half of Flume's tiered collection support. Flume events
-sent to this sink are turned into Avro events and sent to the configured
-hostname / port pair. The events are taken from the configured Channel in
-batches of the configured batch size.
-Required properties are in **bold**.
+这个接收器可以作为 Flume 分层收集特性的下半部分。发送到此接收器的 event 将转换为Avro event发送到指定的主机/端口上。event 从 channel 中批量获取，数量根据配置的 ``batch-size`` 而定。
+必需的参数已用 **粗体** 标明。      
 
-==========================   =====================================================  ===========================================================================================
-Property Name                Default                                                Description
-==========================   =====================================================  ===========================================================================================
-**channel**                  --
-**type**                     --                                                     The component type name, needs to be ``avro``.
-**hostname**                 --                                                     The hostname or IP address to bind to.
-**port**                     --                                                     The port # to listen on.
-batch-size                   100                                                    number of event to batch together for send.
-connect-timeout              20000                                                  Amount of time (ms) to allow for the first (handshake) request.
-request-timeout              20000                                                  Amount of time (ms) to allow for requests after the first.
-reset-connection-interval    none                                                   Amount of time (s) before the connection to the next hop is reset. This will force the Avro Sink to reconnect to the next hop. This will allow the sink to connect to hosts behind a hardware load-balancer when news hosts are added without having to restart the agent.
-compression-type             none                                                   This can be "none" or "deflate".  The compression-type must match the compression-type of matching AvroSource
-compression-level            6                                                      The level of compression to compress event. 0 = no compression and 1-9 is compression.  The higher the number the more compression
-ssl                          false                                                  Set to true to enable SSL for this AvroSink. When configuring SSL, you can optionally set a "truststore", "truststore-password", "truststore-type", and specify whether to "trust-all-certs".
-trust-all-certs              false                                                  If this is set to true, SSL server certificates for remote servers (Avro Sources) will not be checked. This should NOT be used in production because it makes it easier for an attacker to execute a man-in-the-middle attack and "listen in" on the encrypted connection.
-truststore                   --                                                     The path to a custom Java truststore file. Flume uses the certificate authority information in this file to determine whether the remote Avro Source's SSL authentication credentials should be trusted. If not specified, the default Java JSSE certificate authority files (typically "jssecacerts" or "cacerts" in the Oracle JRE) will be used.
-truststore-password          --                                                     The password for the specified truststore.
-truststore-type              JKS                                                    The type of the Java truststore. This can be "JKS" or other supported Java truststore type.
-exclude-protocols            SSLv3                                                  Space-separated list of SSL/TLS protocols to exclude. SSLv3 will always be excluded in addition to the protocols specified.
-maxIoWorkers                 2 * the number of available processors in the machine  The maximum number of I/O worker threads. This is configured on the NettyAvroRpcClient NioClientSocketChannelFactory.
-==========================   =====================================================  ===========================================================================================
+==============================   =====================================================  ===========================================================================================
+属性                              默认值                                                 解释
+==============================   =====================================================  ===========================================================================================
+**channel**                      --                                                     与 Sink 绑定的 channel
+**type**                         --                                                     组件名，这个是： ``avro``.
+**hostname**                     --                                                     监听的服务器名（hostname）或者 IP
+**port**                         --                                                     监听的端口
+batch-size                       100                                                    每次批量发送的 event 数
+connect-timeout                  20000                                                  第一次连接请求（握手）的超时时间，单位：毫秒
+request-timeout                  20000                                                  请求超时时间，单位：毫秒
+reset-connection-interval        none                                                   重置连接到下一跳之前的时间量（单位：秒）。 这将强制 Avro Sink 重新连接到下一跳。 这将允许接收器在添加了新的主机时连接到硬件负载均衡器后面的主机，而无需重新启动 agent。
+compression-type                 none                                                   压缩类型。可选值： ``none`` 、 ``deflate`` 。压缩类型必须与 Avro Source 配置的一致
+compression-level                6                                                      event的压缩级别
+                                                                                        0：不压缩
+                                                                                        1-9:进行压缩，数字越大，压缩率越高
+ssl                              false                                                  设置为 true 表示接收器开启 SSL
+                                                                                        下面的 ``truststore`` 、 ``truststore-password`` 、 ``truststore-type`` 就是开启SSL后使用的参数，并且可以指定是否信任所有证书（ ``trust-all-certs`` ）
+trust-all-certs                  false                                                  如果设置为true， 不会检查远程服务器（Avro Source）的SSL服务器证书。不要在生产环境开启这个配置，因为它使攻击者更容易执行中间人攻击并在加密的连接上进行“监听”。
+truststore                       --                                                     自定义 Java 信任库文件的路径。 Flume 使用此文件中的证书颁发机构信息来确定是否应该信任远程 Avro Source 的 SSL 身份验证凭据。 如果未指定，将使用缺省 Java JSSE 证书颁发机构文件（通常为Oracle JRE中的“jssecacerts”或“cacerts”）。
+truststore-password              --                                                     上面配置的信任库的密码
+truststore-type                  JKS                                                    Java 信任库的类型。可以配成 ``JKS`` 或者其他支持的 Java 信任库类型
+exclude-protocols                SSLv3                                                  要排除的以空格分隔的 SSL/TLS 协议列表。 SSLv3 协议不管是否配置都会被排除掉。
+maxIoWorkers                     2 * 机器上可用的处理器核心数量                           I/O工作线程的最大数量。这个是在 NettyAvroRpcClient 的 NioClientSocketChannelFactory 上配置的。
+==============================   =====================================================  ===========================================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2313,41 +2047,35 @@ Example for agent named a1:
 Thrift Sink
 ~~~~~~~~~~~
 
-This sink forms one half of Flume's tiered collection support. Flume events
-sent to this sink are turned into Thrift events and sent to the configured
-hostname / port pair. The events are taken from the configured Channel in
-batches of the configured batch size.
+这个接收器可以作为 Flume 分层收集特性的下半部分。发送到此接收器的 event 将转换为 Thrift event 发送到指定的主机/端口上。event 从 channel 中获取批量获取，数量根据配置的 ``batch-size`` 而定。
+可以通过启用 kerberos 身份验证将 Thrift Sink 以安全模式启动。如果想以安全模式与 Thrift Source 通信，那么 Thrift Sink 也必须以安全模式运行。 ``client-principal`` 和 ``client-keytab``  
+是 Thrift Sink 用于向 kerberos KDC 进行身份验证的配置参数。 ``server-principal`` 表示此接收器将要以安全模式连接的 Thrift Source 的主体，必需的参数已用 **粗体** 标明。      
 
-Thrift sink can be configured to start in secure mode by enabling kerberos authentication.
-To communicate with a Thrift source started in secure mode, the Thrift sink should also
-operate in secure mode. client-principal and client-keytab are the properties used by the
-Thrift sink to authenticate to the kerberos KDC. The server-principal represents the
-principal of the Thrift source this sink is configured to connect to in secure mode.
-Required properties are in **bold**.
+==========================   ===========  ==============================================
+属性                          默认值       解释
+==========================   ===========  ==============================================
+**channel**                  --           与 Sink 绑定的 channel
+**type**                     --           组件名，这个是： ``thrift``.
+**hostname**                 --           远程 Thrift 服务的主机名或 IP
+**port**                     --           远程 Thrift 的端口
+batch-size                   100          一起批量发送 event 数量
+connect-timeout              20000        第一次连接请求（握手）的超时时间，单位：毫秒
+request-timeout              20000        请求超时时间，单位：毫秒
+connection-reset-interval    none         重置连接到下一跳之前的时间量（单位：秒）。 这将强制 Thrift Sink 重新连接到下一跳。 允许接收器在添加了新的主机时连接到硬件负载均衡器后面的主机，而无需重新启动 agent。
+ssl                          false        设置为 true 表示接收器开启 SSL。下面的 ``truststore`` 、 ``truststore-password`` 、 ``truststore-type`` 就是开启 SSL 后使用的参数
+truststore                   --           自定义 Java 信任库文件的路径。 Flume 使用此文件中的证书颁发机构信息来确定是否应该信任远程 Avro Source 的 SSL 身份验证凭据。 如果未指定，将使用缺省 Java JSSE 证书颁发机构文件（通常为 Oracle JRE 中的“jssecacerts”或“cacerts”）。
+truststore-password          --           上面配置的信任库的密码
+truststore-type              JKS          Java 信任库的类型。可以配成 ``JKS`` 或者其他支持的 Java 信任库类型
+exclude-protocols            SSLv3        要排除的以空格分隔的 SSL/TLS 协议列表
+kerberos                     false        设置为 true 开启 kerberos 身份验证。在 kerberos 模式下，需要 ``client-principal`` 、 ``client-keytab`` 和 ``server-principal`` 才能成功进行身份验证并与启用了 kerberos 的 Thrift Source 进行通信。
+client-principal             —-           Thrift Sink 用来向 kerberos KDC 进行身份验证的 kerberos 主体。
+client-keytab                —-           Thrift Sink 与 ``client-principal`` 结合使用的 keytab 文件路径，用于对 kerberos KDC 进行身份验证。
+server-principal             --           Thrift Sink 将要连接到的 Thrift Source 的 kerberos 主体。
+==========================   ===========  ==============================================
 
-==========================   =======  ==============================================
-Property Name                Default  Description
-==========================   =======  ==============================================
-**channel**                  --
-**type**                     --       The component type name, needs to be ``thrift``.
-**hostname**                 --       The hostname or IP address to bind to.
-**port**                     --       The port # to listen on.
-batch-size                   100      number of event to batch together for send.
-connect-timeout              20000    Amount of time (ms) to allow for the first (handshake) request.
-request-timeout              20000    Amount of time (ms) to allow for requests after the first.
-connection-reset-interval    none     Amount of time (s) before the connection to the next hop is reset. This will force the Thrift Sink to reconnect to the next hop. This will allow the sink to connect to hosts behind a hardware load-balancer when news hosts are added without having to restart the agent.
-ssl                          false    Set to true to enable SSL for this ThriftSink. When configuring SSL, you can optionally set a "truststore", "truststore-password" and "truststore-type"
-truststore                   --       The path to a custom Java truststore file. Flume uses the certificate authority information in this file to determine whether the remote Thrift Source's SSL authentication credentials should be trusted. If not specified, the default Java JSSE certificate authority files (typically "jssecacerts" or "cacerts" in the Oracle JRE) will be used.
-truststore-password          --       The password for the specified truststore.
-truststore-type              JKS      The type of the Java truststore. This can be "JKS" or other supported Java truststore type.
-exclude-protocols            SSLv3    Space-separated list of SSL/TLS protocols to exclude
-kerberos                     false    Set to true to enable kerberos authentication. In kerberos mode, client-principal, client-keytab and server-principal are required for successful authentication and communication to a kerberos enabled Thrift Source.
-client-principal             —-       The kerberos principal used by the Thrift Sink to authenticate to the kerberos KDC.
-client-keytab                —-       The keytab location used by the Thrift Sink in combination with the client-principal to authenticate to the kerberos KDC.
-server-principal             --       The kerberos principal of the Thrift Source to which the Thrift Sink is configured to connect to.
-==========================   =======  ==============================================
+.. hint:: 官方英文文档 ``connection-reset-interval`` 这个参数是错误的，在源码里面是 ``reset-connection-interval`` ，从 Avro Sink 也能看到正确的应该是 ``reset-connection-interval`` 。
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2361,29 +2089,26 @@ Example for agent named a1:
 IRC Sink
 ~~~~~~~~
 
-The IRC sink takes messages from attached channel and relays those to
-configured IRC destinations.
-Required properties are in **bold**.
+IRC sink 从连接的 channel 获取消息然后将这些消息中继到配置的 IRC 目标上。
+必需的参数已用 **粗体** 标明。      
 
 ===============  =======  ========================================================
-Property Name    Default  Description
+属性              默认值   解释
 ===============  =======  ========================================================
-**channel**      --
-**type**         --       The component type name, needs to be ``irc``
-**hostname**     --       The hostname or IP address to connect to
-port             6667     The port number of remote host to connect
-**nick**         --       Nick name
-user             --       User name
-password         --       User password
-**chan**         --       channel
-name
-splitlines       --       (boolean)
-splitchars       \n       line separator (if you were to enter the default value
-                          into the config file, then you would need to escape the
-                          backslash, like this: "\\n")
+**channel**      --       与 Sink 绑定的 channel
+**type**         --       组件名，这个是： ``irc``
+**hostname**     --       要连接的服务器名（hostname ）或 IP
+port             6667     要连接的远程服务器端口
+**nick**         --       昵称
+user             --       用户名
+password         --       密码
+**chan**         --       频道
+name                      真实姓名
+splitlines       false    是否分割消息后进行发送
+splitchars       \\n      行分隔符如果上面 ``splitlines`` 设置为 true，会使用这个分隔符把消息体先进行分割再逐个发送，如果你要在配置文件中配置默认值，那么你需要一个转义反斜杠，像这样：“ \n”
 ===============  =======  ========================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2398,24 +2123,30 @@ Example for agent named a1:
 File Roll Sink
 ~~~~~~~~~~~~~~
 
-Stores events on the local filesystem.
-Required properties are in **bold**.
+把 event 存储到本地文件系统。
+必需的参数已用 **粗体** 标明。      
 
 ==========================  =======  ======================================================================================================================
-Property Name               Default  Description
+属性                         默认值   解释
 ==========================  =======  ======================================================================================================================
-**channel**                 --
-**type**                    --       The component type name, needs to be ``file_roll``.
-**sink.directory**          --       The directory where files will be stored
-sink.pathManager            DEFAULT  The PathManager implementation to use.
-sink.pathManager.extension  --       The file extension if the default PathManager is used.
-sink.pathManager.prefix     --       A character string to add to the beginning of the file name if the default PathManager is used
-sink.rollInterval           30       Roll the file every 30 seconds. Specifying 0 will disable rolling and cause all events to be written to a single file.
-sink.serializer             TEXT     Other possible options include ``avro_event`` or the FQCN of an implementation of EventSerializer.Builder interface.
-batchSize                   100
+**channel**                 --       与 Sink 绑定的 channel
+**type**                    --       组件名，这个是： ``file_roll``.
+**sink.directory**          --       event 将要保存的目录
+sink.pathManager            DEFAULT  配置使用哪个路径管理器，这个管理器的作用是按照规则生成新的存储文件名称
+                                     可选值有： ``default`` 、 ``rolltime``。
+                                     default规则：prefix+当前毫秒值+“-”+文件序号+“.”+extension；
+                                     rolltime规则：prefix+yyyyMMddHHmmss+“-”+文件序号+“.”+extension；
+                                     注：prefix 和 extension 如果没有配置则不会附带
+sink.pathManager.extension  --       如果上面的 ``pathManager`` 使用默认的话，可以用这个属性配置存储文件的扩展名
+sink.pathManager.prefix     --       如果上面的 ``pathManager`` 使用默认的话，可以用这个属性配置存储文件的文件名的固定前缀
+sink.rollInterval           30       表示每隔30秒创建一个新文件进行存储。如果设置为0，表示所有 event 都会写到一个文件中。
+sink.serializer             TEXT     配置 event 序列化器，可选值有：``text`` 、 ``header_and_text`` 、 ``avro_event`` 或者自定义实现了 ``EventSerializer.Builder`` 接口的序列化器的全限定类名.。
+                                     text 只会把 event 的 body 的文本内容序列化；
+                                     header_and_text 会把 header 和 body 内容都序列化。
+batchSize                   100      每次请求批处理的 event 数
 ==========================  =======  ======================================================================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2428,18 +2159,18 @@ Example for agent named a1:
 Null Sink
 ~~~~~~~~~
 
-Discards all events it receives from the channel.
-Required properties are in **bold**.
+丢弃所有从 channel 读取到的 event。
+必需的参数已用 **粗体** 标明。      
 
 =============  =======  ==============================================
-Property Name  Default  Description
+属性            默认值   解释
 =============  =======  ==============================================
-**channel**    --
-**type**       --       The component type name, needs to be ``null``.
-batchSize      100
+**channel**    --       与 Sink 绑定的 channel
+**type**       --       组件名，这个是： ``null``.
+batchSize      100      每次批处理的 event 数量
 =============  =======  ==============================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2454,52 +2185,35 @@ HBaseSinks
 HBaseSink
 '''''''''
 
-This sink writes data to HBase. The Hbase configuration is picked up from the first
-hbase-site.xml encountered in the classpath. A class implementing HbaseEventSerializer
-which is specified by the configuration is used to convert the events into
-HBase puts and/or increments. These puts and increments are then written
-to HBase. This sink provides the same consistency guarantees as HBase,
-which is currently row-wise atomicity. In the event of Hbase failing to
-write certain events, the sink will replay all events in that transaction.
+此接收器将数据写入 HBase。 Hbase 配置是从classpath中遇到的第一个 hbase-site.xml 中获取的。 配置指定的 ``HbaseEventSerializer`` 接口的实现类用于将 event 转换为 HBase put 或 increments。
+然后将这些 put 和 increments 写入 HBase。 该接收器提供与 HBase 相同的一致性保证，HBase 是当前行的原子性。 如果 Hbase 无法写入某些 event，则接收器将重试该事务中的所有 event。
 
-The HBaseSink supports writing data to secure HBase. To write to secure HBase, the user
-the agent is running as must have write permissions to the table the sink is configured
-to write to. The principal and keytab to use to authenticate against the KDC can be specified
-in the configuration. The hbase-site.xml in the Flume agent's classpath
-must have authentication set to ``kerberos`` (For details on how to do this, please refer to
-HBase documentation).
+这个接收器支持以安全的方式把数据写入到 HBase。为了使用安全写入模式，运行 Flume 实例的用户必须有写入 HBase 目标表的写入权限。可以在配置中指定用于对 KDC 进行身份验证的主体和密钥表。
+ Flume 的 classpath 中的 hbase-site.xml 必须将身份验证设置为 kerberos（有关如何执行此操作的详细信息，请参阅HBase文档）。
 
-For convenience, two serializers are provided with Flume. The
-SimpleHbaseEventSerializer (org.apache.flume.sink.hbase.SimpleHbaseEventSerializer)
-writes the event body
-as-is to HBase, and optionally increments a column in Hbase. This is primarily
-an example implementation. The RegexHbaseEventSerializer
-(org.apache.flume.sink.hbase.RegexHbaseEventSerializer) breaks the event body
-based on the given regex and writes each part into different columns.
+Flume提供了两个序列化器。第一个序列化器是 SimpleHbaseEventSerializer ( ``org.apache.flume.sink.hbase.SimpleHbaseEventSerializer`` ) ，它把 event body 原样写入到HBase，并可选增加HBase列，这个实现主要就是提供个例子。
+第二个序列化器是 RegexHbaseEventSerializer ( ``org.apache.flume.sink.hbase.RegexHbaseEventSerializer`` ) ，它把 event body 按照给定的正则进行分割然后写入到不同的列中。
 
-The type is the FQCN: org.apache.flume.sink.hbase.HBaseSink.
-
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 ==================  ======================================================  ==============================================================================
-Property Name       Default                                                 Description
+属性                 默认值                                                  解释
 ==================  ======================================================  ==============================================================================
-**channel**         --
-**type**            --                                                      The component type name, needs to be ``hbase``
-**table**           --                                                      The name of the table in Hbase to write to.
-**columnFamily**    --                                                      The column family in Hbase to write to.
-zookeeperQuorum     --                                                      The quorum spec. This is the value for the property ``hbase.zookeeper.quorum`` in hbase-site.xml
-znodeParent         /hbase                                                  The base path for the znode for the -ROOT- region. Value of ``zookeeper.znode.parent`` in hbase-site.xml
-batchSize           100                                                     Number of events to be written per txn.
-coalesceIncrements  false                                                   Should the sink coalesce multiple increments to a cell per batch. This might give
-                                                                            better performance if there are multiple increments to a limited number of cells.
-serializer          org.apache.flume.sink.hbase.SimpleHbaseEventSerializer  Default increment column = "iCol", payload column = "pCol".
-serializer.*        --                                                      Properties to be passed to the serializer.
-kerberosPrincipal   --                                                      Kerberos user principal for accessing secure HBase
-kerberosKeytab      --                                                      Kerberos keytab for accessing secure HBase
+**channel**         --                                                      与 Sink 绑定的 channel
+**type**            --                                                      组件名，这个是： ``hbase``
+**table**           --                                                      要写入的 Hbase 表名
+**columnFamily**    --                                                      要写入的 Hbase 列族
+zookeeperQuorum     --                                                      Zookeeper 节点（host:port格式，多个用逗号分隔），hbase-site.xml 中属性 ``hbase.zookeeper.quorum`` 的值
+znodeParent         /hbase                                                  ZooKeeper 中 HBase 的 Root ZNode 路径，hbase-site.xml中 zookeeper.znode.parent 的值。
+batchSize           100                                                     每个事务写入的 event 数量
+coalesceIncrements  false                                                   每次提交时，接收器是否合并多个 increment 到一个 cell。如果有限数量的 cell 有多个 increment ，这样可能会提供更好的性能。
+serializer          org.apache.flume.sink.hbase.SimpleHbaseEventSerializer  指定序列化器。默认的increment column = “iCol”， payload column = “pCol”。
+serializer.*        --                                                      序列化器的属性
+kerberosPrincipal   --                                                      以安全方式访问 HBase 的 Kerberos 用户主体
+kerberosKeytab      --                                                      以安全方式访问 HBase 的 Kerberos keytab 文件目录
 ==================  ======================================================  ==============================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2514,43 +2228,29 @@ Example for agent named a1:
 AsyncHBaseSink
 ''''''''''''''
 
-This sink writes data to HBase using an asynchronous model. A class implementing
-AsyncHbaseEventSerializer which is specified by the configuration is used to convert the events into
-HBase puts and/or increments. These puts and increments are then written
-to HBase. This sink uses the `Asynchbase API <https://github.com/OpenTSDB/asynchbase>`_ to write to
-HBase. This sink provides the same consistency guarantees as HBase,
-which is currently row-wise atomicity. In the event of Hbase failing to
-write certain events, the sink will replay all events in that transaction.
-The type is the FQCN: org.apache.flume.sink.hbase.AsyncHBaseSink.
-Required properties are in **bold**.
+这个接收器使用异步模型将数据写入 HBase。这个接收器使用 ``AsyncHbaseEventSerializer`` 这个序列化器来转换 event 为 HBase 的 put 和 increment，然后写入到 HBase。
+此接收器使用 `Asynchbase API <https://github.com/OpenTSDB/asynchbase>`_ 来写入 HBase。该接收器提供与 HBase 相同的一致性保证，HBase 是当前行的原子性。 如果 Hbase 无法写入某些 event，则接收器将重试该事务中的所有 event。
+必需的参数已用 **粗体** 标明。      
 
 ===================  ============================================================  ====================================================================================
-Property Name        Default                                                       Description
+属性                  默认值                                                        解释
 ===================  ============================================================  ====================================================================================
-**channel**          --
-**type**             --                                                            The component type name, needs to be ``asynchbase``
-**table**            --                                                            The name of the table in Hbase to write to.
-zookeeperQuorum      --                                                            The quorum spec. This is the value for the property ``hbase.zookeeper.quorum`` in hbase-site.xml
-znodeParent          /hbase                                                        The base path for the znode for the -ROOT- region. Value of ``zookeeper.znode.parent`` in hbase-site.xml
-**columnFamily**     --                                                            The column family in Hbase to write to.
-batchSize            100                                                           Number of events to be written per txn.
-coalesceIncrements   false                                                         Should the sink coalesce multiple increments to a cell per batch. This might give
-                                                                                   better performance if there are multiple increments to a limited number of cells.
-timeout              60000                                                         The length of time (in milliseconds) the sink waits for acks from hbase for
-                                                                                   all events in a transaction.
-serializer           org.apache.flume.sink.hbase.SimpleAsyncHbaseEventSerializer
-serializer.*         --                                                            Properties to be passed to the serializer.
+**channel**          --                                                            与 Sink 绑定的 channel
+**type**             --                                                            组件名，这个是： ``asynchbase``
+**table**            --                                                            要写入的 Hbase 表名
+zookeeperQuorum      --                                                            Zookeeper 节点（host:port格式，多个用逗号分隔），hbase-site.xml 中属性 ``hbase.zookeeper.quorum`` 的值
+znodeParent          /hbase                                                        ZooKeeper 中 HBase 的 Root ZNode 路径，hbase-site.xml 中 ``zookeeper.znode.parent`` 的值。
+**columnFamily**     --                                                            要写入的 Hbase 列族
+batchSize            100                                                           每个事务写入的 event 数量
+coalesceIncrements   false                                                         每次提交时，接收器是否合并多个 increment 到一个cell。如果有限数量的 cell 有多个 increment ，这样可能会提供更好的性能。
+timeout              60000                                                         接收器为事务中所有 event 等待来自 HBase 响应的超时时间（毫秒）
+serializer           org.apache.flume.sink.hbase.SimpleAsyncHbaseEventSerializer   序列化器
+serializer.*         --                                                            序列化器的一些属性
 ===================  ============================================================  ====================================================================================
 
-Note that this sink takes the Zookeeper Quorum and parent znode information in
-the configuration. Zookeeper Quorum and parent node configuration may be
-specified in the flume configuration file. Alternatively, these configuration
-values are taken from the first hbase-site.xml file in the classpath.
+如果配置文件中没有提供这些参数配置，接收器就会从 classpath 中第一个 hbase-site.xml 中读取这些需要的配置信息。
 
-If these are not provided in the configuration, then the sink
-will read this information from the first hbase-site.xml file in the classpath.
-
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2565,44 +2265,45 @@ Example for agent named a1:
 MorphlineSolrSink
 ~~~~~~~~~~~~~~~~~
 
-This sink extracts data from Flume events, transforms it, and loads it in near-real-time into Apache Solr servers, which in turn serve queries to end users or search applications.
+此接收器从 Flume的 event 中提取数据，对其进行转换，并将其近乎实时地加载到 Apache Solr 服务器中，后者又向最终用户或搜索应用程序提供查询服务。
 
-This sink is well suited for use cases that stream raw data into HDFS (via the HdfsSink) and simultaneously extract, transform and load the same data into Solr (via MorphlineSolrSink). In particular, this sink can process arbitrary heterogeneous raw data from disparate data sources and turn it into a data model that is useful to Search applications.
+此接收器非常适合将原始数据流式传输到 HDFS（通过HDFS Sink）并同时提取、转换并将相同数据加载到 Solr（通过MorphlineSolrSink）的使用场景。特别是，此接收器可以处理来自不同数据源的任意异构原始数据，并将其转换为对搜索应用程序有用的数据模型。
 
-The ETL functionality is customizable using a `morphline configuration file <http://cloudera.github.io/cdk/docs/current/cdk-morphlines/index.html>`_ that defines a chain of transformation commands that pipe event records from one command to another.
+ETL 功能可使用 morphline 的配置文件进行自定义，该文件定义了一系列转换命令，用于将 event 从一个命令传递到另一个命令。
 
-Morphlines can be seen as an evolution of Unix pipelines where the data model is generalized to work with streams of generic records, including arbitrary binary payloads. A morphline command is a bit like a Flume Interceptor. Morphlines can be embedded into Hadoop components such as Flume.
+Morphlines 可以看作是 Unix 管道的演变，其中数据模型被推广为使用通用记录流，包括任意二进制有效载荷。 morphline 命令有点像 Flume 拦截器。 Morphlines 可以嵌入到 Flume 等 Hadoop 组件中。
 
-Commands to parse and transform a set of standard data formats such as log files, Avro, CSV, Text, HTML, XML, PDF, Word, Excel, etc. are provided out of the box, and additional custom commands and parsers for additional data formats can be added as morphline plugins. Any kind of data format can be indexed and any Solr documents for any kind of Solr schema can be generated, and any custom ETL logic can be registered and executed.
+用于解析和转换一组标准数据格式（如日志文件，Avro，CSV，文本，HTML，XML，PDF，Word，Excel等）的命令是开箱即用的，还有其他自定义命令和解析器用于其他数据格式可以作为插件添加到 morphline。可以索引任何类型的数据格式，
+并且可以生成任何类型的 Solr 模式的任何 Solr 文档，也可以注册和执行任何自定义 ETL 逻辑。
 
-Morphlines manipulate continuous streams of records. The data model can be described as follows: A record is a set of named fields where each field has an ordered list of one or more values. A value can be any Java Object. That is, a record is essentially a hash table where each hash table entry contains a String key and a list of Java Objects as values. (The implementation uses Guava's ``ArrayListMultimap``, which is a ``ListMultimap``). Note that a field can have multiple values and any two records need not use common field names.
+Morphlines 操纵连续的数据流。数据模型可以描述如下：数据记录是一组命名字段，其中每个字段具有一个或多个值的有序列表。值可以是任何Java对象。也就是说，数据记录本质上是一个哈希表，
+其中每个哈希表条目包含一个 String 键和一个 Java 对象列表作为值。 （该实现使用 Guava 的 ArrayListMultimap，它是一个 ListMultimap）。请注意，字段可以具有多个值，并且任何两个记录都不需要使用公共字段名称。
 
-This sink fills the body of the Flume event into the ``_attachment_body`` field of the morphline record, as well as copies the headers of the Flume event into record fields of the same name. The commands can then act on this data.
+此接收器将 Flume event 的 body 填充到 morphline 记录的 ``_attachment_body`` 字段中，并将 Flume event 的 header 复制到同名的记录字段中。然后命令可以对此数据执行操作。
 
-Routing to a SolrCloud cluster is supported to improve scalability. Indexing load can be spread across a large number of MorphlineSolrSinks for improved scalability. Indexing load can be replicated across multiple MorphlineSolrSinks for high availability, for example using Flume features such as Load balancing Sink Processor. MorphlineInterceptor can also help to implement dynamic routing to multiple Solr collections (e.g. for multi-tenancy).
+支持路由到 SolrCloud 集群以提高可伸缩性。索引负载可以分布在大量 MorphlineSolrSinks 上，以提高可伸缩性。可以跨多个 MorphlineSolrSinks 复制索引负载以实现高可用性，例如使用 Flume的负载均衡特性（Load balancing Sink Processor）。
+ MorphlineInterceptor 还可以帮助实现到多个 Solr 集合的动态路由（例如，用于多租户）。
 
-The morphline and solr jars required for your environment must be placed in the lib directory of the Apache Flume installation.
+老规矩，morphline 和 solr 的 jar 包需要放在 Flume 的 lib 目录中。
 
-The type is the FQCN: org.apache.flume.sink.solr.morphline.MorphlineSolrSink
+必需的参数已用 **粗体** 标明。      
 
-Required properties are in **bold**.
+===============================   =======================================================================  =====================================================
+属性                               默认值                                                                   解释
+===============================   =======================================================================  =====================================================
+**channel**                       --                                                                       与 Sink 绑定的 channel
+**type**                          --                                                                       组件名，这个是： ``org.apache.flume.sink.solr.morphline.MorphlineSolrSink``
+**morphlineFile**                 --                                                                       morphline 配置文件的相对或者绝对路径，例如：/etc/flume-ng/conf/morphline.conf
+morphlineId                       null                                                                     如果 morphline 文件里配置了多个 morphline 实例，可以用这个参数来标识 morphline 作为一个可选名字
+batchSize                         1000                                                                     单个事务操作的最大 event 数量
+batchDurationMillis               1000                                                                     事务的最大超时时间（毫秒）。达到这个时间或者达到 ``batchSize`` 都会触发提交事物。
+handlerClass                      org.apache.flume.sink.solr.morphline.MorphlineHandlerImpl                实现了 ``org.apache.flume.sink.solr.morphline.MorphlineHandler`` 接口的实现类的全限定类名
+isProductionMode                  false                                                                    重要的任务和大规模的生产系统应该启用这个模式，这些系统需要在发生不可恢复的异常时不停机来获取信息。未知的 Solr 架构字段相关的错误、损坏或格式错误的解析器输入数据、解析器错误等都会产生不可恢复的异常。
+recoverableExceptionClasses       org.apache.solr.client.solrj.SolrServerException                         以逗号分隔的可恢复异常列表，这些异常往往是暂时的，在这种情况下，可以进行相应地重试。 比如：网络连接错误，超时等。当 isProductionMode 标志设置为 true 时，使用此参数配置的可恢复异常将不会被忽略，并且会进行重试。
+isIgnoringRecoverableExceptions   false                                                                    如果不可恢复的异常被意外错误分类为可恢复，则应启用这个标志。 这使得接收器能够取得进展并避免永远重试一个 event。
+===============================   =======================================================================  =====================================================
 
-===============================   =======================================================================  ========================
-Property Name                     Default                                                                  Description
-===============================   =======================================================================  ========================
-**channel**                       --
-**type**                          --                                                                       The component type name, needs to be ``org.apache.flume.sink.solr.morphline.MorphlineSolrSink``
-**morphlineFile**                 --                                                                       The relative or absolute path on the local file system to the morphline configuration file. Example: ``/etc/flume-ng/conf/morphline.conf``
-morphlineId                       null                                                                     Optional name used to identify a morphline if there are multiple morphlines in a morphline config file
-batchSize                         1000                                                                     The maximum number of events to take per flume transaction.
-batchDurationMillis               1000                                                                     The maximum duration per flume transaction (ms). The transaction commits after this duration or when batchSize is exceeded, whichever comes first.
-handlerClass                      org.apache.flume.sink.solr.morphline.MorphlineHandlerImpl                The FQCN of a class implementing org.apache.flume.sink.solr.morphline.MorphlineHandler
-isProductionMode                  false                                                                    This flag should be enabled for mission critical, large-scale online production systems that need to make progress without downtime when unrecoverable exceptions occur. Corrupt or malformed parser input data, parser bugs, and errors related to unknown Solr schema fields produce unrecoverable exceptions.
-recoverableExceptionClasses       org.apache.solr.client.solrj.SolrServerException                         Comma separated list of recoverable exceptions that tend to be transient, in which case the corresponding task can be retried. Examples include network connection errors, timeouts, etc. When the production mode flag is set to true, the recoverable exceptions configured using this parameter will not be ignored and hence will lead to retries.
-isIgnoringRecoverableExceptions   false                                                                    This flag should be enabled, if an unrecoverable exception is accidentally misclassified as recoverable. This enables the sink to make progress and avoid retrying an event forever.
-===============================   =======================================================================  ========================
-
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2618,56 +2319,40 @@ Example for agent named a1:
 ElasticSearchSink
 ~~~~~~~~~~~~~~~~~
 
-This sink writes data to an elasticsearch cluster. By default, events will be written so that the `Kibana <http://kibana.org>`_ graphical interface
-can display them - just as if `logstash <https://logstash.net>`_ wrote them.
+这个接收器把数据写入到 elasticsearch 集群，就像 `logstash <https://logstash.net>`_ 一样把 event 写入以便 `Kibana <http://kibana.org>`_ 图形接口可以查询并展示。
 
-The elasticsearch and lucene-core jars required for your environment must be placed in the lib directory of the Apache Flume installation.
-Elasticsearch requires that the major version of the client JAR match that of the server and that both are running the same minor version
-of the JVM. SerializationExceptions will appear if this is incorrect. To
-select the required version first determine the version of elasticsearch and the JVM version the target cluster is running. Then select an elasticsearch client
-library which matches the major version. A 0.19.x client can talk to a 0.19.x cluster; 0.20.x can talk to 0.20.x and 0.90.x can talk to 0.90.x. Once the
-elasticsearch version has been determined then read the pom.xml file to determine the correct lucene-core JAR version to use. The Flume agent
-which is running the ElasticSearchSink should also match the JVM the target cluster is running down to the minor version.
+必须将环境所需的 elasticsearch 和 lucene-core jar 放在 Flume 安装的 lib 目录中。 Elasticsearch 要求客户端 JAR 的主要版本与服务器的主要版本匹配，并且两者都运行相同的 JVM 次要版本。如果版本不正确，会报 SerializationExceptions 异常。
+要选择所需的版本，请首先确定 elasticsearch 的版本以及目标群集正在运行的 JVM 版本。然后选择与主要版本匹配的 elasticsearch 客户端库。 0.19.x客户端可以与0.19.x群集通信; 0.20.x可以与0.20.x对话，0.90.x可以与0.90.x对话。确定 elasticsearch 版本后，
+读取 pom.xml 文件以确定要使用的正确 lucene-core JAR 版本。运行 ElasticSearchSink 的 Flume 实例程序也应该与目标集群运行的次要版本的 JVM 相匹配。
 
-Events will be written to a new index every day. The name will be <indexName>-yyyy-MM-dd where <indexName> is the indexName parameter. The sink
-will start writing to a new index at midnight UTC.
+所有的 event 每天会被写入到新的索引，名称是<indexName>-yyyy-MM-dd的格式，其中<indexName>可以自定义配置。接收器将在午夜 UTC 开始写入新索引。
 
-Events are serialized for elasticsearch by the ElasticSearchLogStashEventSerializer by default. This behaviour can be
-overridden with the serializer parameter. This parameter accepts implementations of org.apache.flume.sink.elasticsearch.ElasticSearchEventSerializer
-or org.apache.flume.sink.elasticsearch.ElasticSearchIndexRequestBuilderFactory. Implementing ElasticSearchEventSerializer is deprecated in favour of
-the more powerful ElasticSearchIndexRequestBuilderFactory.
+默认情况下，event 会被 ElasticSearchLogStashEventSerializer 序列化器进行序列化。可以通过 serializer 参数配置来更改序和自定义列化器。这个参数可以配置 ``org.apache.flume.sink.elasticsearch.ElasticSearchEventSerializer`` 或
+``org.apache.flume.sink.elasticsearch.ElasticSearchIndexRequestBuilderFactory`` 接口的实现类，ElasticSearchEventSerializer 现在已经不建议使用了，推荐使用更强大的后者。
 
-The type is the FQCN: org.apache.flume.sink.elasticsearch.ElasticSearchSink
-
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 ================  ======================================================================== =======================================================================================================
-Property Name     Default                                                                  Description
+属性               默认值                                                                   解释
 ================  ======================================================================== =======================================================================================================
-**channel**       --
-**type**          --                                                                       The component type name, needs to be ``org.apache.flume.sink.elasticsearch.ElasticSearchSink``
-**hostNames**     --                                                                       Comma separated list of hostname:port, if the port is not present the default port '9300' will be used
-indexName         flume                                                                    The name of the index which the date will be appended to. Example 'flume' -> 'flume-yyyy-MM-dd'
-                                                                                           Arbitrary header substitution is supported, eg. %{header} replaces with value of named event header
-indexType         logs                                                                     The type to index the document to, defaults to 'log'
-                                                                                           Arbitrary header substitution is supported, eg. %{header} replaces with value of named event header
-clusterName       elasticsearch                                                            Name of the ElasticSearch cluster to connect to
-batchSize         100                                                                      Number of events to be written per txn.
-ttl               --                                                                       TTL in days, when set will cause the expired documents to be deleted automatically,
-                                                                                           if not set documents will never be automatically deleted. TTL is accepted both in the earlier form of
-                                                                                           integer only e.g. a1.sinks.k1.ttl = 5 and also with a qualifier ms (millisecond), s (second), m (minute),
-                                                                                           h (hour), d (day) and w (week). Example a1.sinks.k1.ttl = 5d will set TTL to 5 days. Follow
-                                                                                           http://www.elasticsearch.org/guide/reference/mapping/ttl-field/ for more information.
-serializer        org.apache.flume.sink.elasticsearch.ElasticSearchLogStashEventSerializer The ElasticSearchIndexRequestBuilderFactory or ElasticSearchEventSerializer to use. Implementations of
-                                                                                           either class are accepted but ElasticSearchIndexRequestBuilderFactory is preferred.
-serializer.*      --                                                                       Properties to be passed to the serializer.
+**channel**       --                                                                       与 Sink 绑定的 channel
+**type**          --                                                                       组件名，这个是： ``org.apache.flume.sink.elasticsearch.ElasticSearchSink``
+**hostNames**     --                                                                       逗号分隔的hostname:port列表，如果端口不存在，则使用默认的9300端口
+indexName         flume                                                                    指定索引名称的前缀。比如：默认是“flume”，使用的索引名称就是 flume-yyyy-MM-dd 这种格式。也支持 header 属性替换的方式，比如%{lyf}就会用 event header 中的属性名为 lyf 的值。
+indexType         logs                                                                     文档的索引类型。默认为 log，也支持 header 属性替换的方式，比如%{lyf}就会用 event header 中的属性名为 lyf 的值。
+clusterName       elasticsearch                                                            要连接的 ElasticSearch 集群名称
+batchSize         100                                                                      每个事务写入的 event 数量
+ttl               --                                                                       TTL 以天为单位，设置了会导致过期文档自动删除，如果没有设置，文档将永远不会被自动删除。 TTL 仅以较早的整数形式被接受，
+                                                                                           例如 a1.sinks.k1.ttl = 5并且还具有限定符 ``ms`` （毫秒）， ``s`` （秒）， ``m`` （分钟）， ``h`` （小时）， ``d`` （天）和 ``w`` （星期）。 
+                                                                                           示例a1.sinks.k1.ttl = 5d 表示将TTL设置为5天。 点击 http://www.elasticsearch.org/guide/reference/mapping/ttl-field/ 了解更多信息。
+serializer        org.apache.flume.sink.elasticsearch.ElasticSearchLogStashEventSerializer 序列化器必须实现 ``ElasticSearchEventSerializer`` 或 ``ElasticSearchIndexRequestBuilderFactory`` 接口，推荐使用后者。
+serializer.*      --                                                                       序列化器的一些属性配置
 ================  ======================================================================== =======================================================================================================
 
-.. note:: Header substitution is a handy to use the value of an event header to dynamically decide the indexName and indexType to use when storing the event.
-          Caution should be used in using this feature as the event submitter now has control of the indexName and indexType.
-          Furthermore, if the elasticsearch REST client is used then the event submitter has control of the URL path used.
+.. note:: 使用 header 替换可以方便地通过 header 中的值来动态地决定存储 event 时要时候用的 indexName 和 indexType。使用此功能时应谨慎，因为 event 提交者可以控制 indexName 和 indexType。 
+          此外，如果使用 elasticsearch REST 客户端，则 event 提交者可以控制所使用的URL路径。
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -2686,149 +2371,87 @@ Example for agent named a1:
 Kite Dataset Sink
 ~~~~~~~~~~~~~~~~~
 
-Experimental sink that writes events to a `Kite Dataset <http://kitesdk.org/docs/current/guide/>`_.
-This sink will deserialize the body of each incoming event and store the
-resulting record in a Kite Dataset. It determines target Dataset by loading a
-dataset by URI.
+这是一个将 event 写入到 Kite 的实验性的接收器。这个接收器会反序列化每一个 event body，并将结果存储到 `Kite Dataset <http://kitesdk.org/docs/current/guide/>`_。它通过按URI加载数据集来确定目标数据集。
 
-The only supported serialization is avro, and the record schema must be passed
-in the event headers, using either ``flume.avro.schema.literal`` with the JSON
-schema representation or ``flume.avro.schema.url`` with a URL where the schema
-may be found (``hdfs:/...`` URIs are supported). This is compatible with the
-Log4jAppender flume client and the spooling directory source's Avro
-deserializer using ``deserializer.schemaType = LITERAL``.
+唯一支持的序列化方式是 avro，并且必须在在 event header 中传递数据的结构，使用 ``flume.avro.schema.literal`` 加 json 格式的结构信息表示，或者用 ``flume.avro.schema.url`` 加一个能够获取到结构信息的URL（比如hdfs:/...这种）。
+这与使用deserializer.schemaType = LITERAL的 Log4jAppender 和 `Spooling Directory Source`_ 的 avro 反序列化器兼容。
 
-Note 1: The ``flume.avro.schema.hash`` header is **not supported**.
-Note 2: In some cases, file rolling may occur slightly after the roll interval
-has been exceeded. However, this delay will not exceed 5 seconds. In most
-cases, the delay is neglegible.
+.. note:: 1、`flume.avro.schema.hash` 这个 header 不支持；
+          2、在某些情况下，在超过滚动间隔后会略微发生文件滚动，但是这个延迟不会超过5秒钟，大多数情况下这个延迟是可以忽略的。
 
 ============================  =======  ===========================================================
-Property Name                 Default  Description
+属性                           默认值   解释
 ============================  =======  ===========================================================
-**channel**                   --
-**type**                      --       Must be org.apache.flume.sink.kite.DatasetSink
-**kite.dataset.uri**          --       URI of the dataset to open
-kite.repo.uri                 --       URI of the repository to open
-                                       (deprecated; use kite.dataset.uri instead)
-kite.dataset.namespace        --       Namespace of the Dataset where records will be written
-                                       (deprecated; use kite.dataset.uri instead)
-kite.dataset.name             --       Name of the Dataset where records will be written
-                                       (deprecated; use kite.dataset.uri instead)
-kite.batchSize                100      Number of records to process in each batch
-kite.rollInterval             30       Maximum wait time (seconds) before data files are released
-kite.flushable.commitOnBatch  true     If ``true``, the Flume transaction will be commited and the
-                                       writer will be flushed on each batch of ``kite.batchSize``
-                                       records. This setting only applies to flushable datasets. When
-                                       ``true``, it's possible for temp files with commited data to be
-                                       left in the dataset directory. These files need to be recovered
-                                       by hand for the data to be visible to DatasetReaders.
-kite.syncable.syncOnBatch     true     Controls whether the sink will also sync data when committing
-                                       the transaction. This setting only applies to syncable datasets.
-                                       Syncing gaurentees that data will be written on stable storage
-                                       on the remote system while flushing only gaurentees that data
-                                       has left Flume's client buffers. When the
-                                       ``kite.flushable.commitOnBatch`` property is set to ``false``,
-                                       this property must also be set to ``false``.
-kite.entityParser             avro     Parser that turns Flume ``Events`` into Kite entities.
-                                       Valid values are ``avro`` and the fully-qualified class name
-                                       of an implementation of the ``EntityParser.Builder`` interface.
-kite.failurePolicy            retry    Policy that handles non-recoverable errors such as a missing
-                                       ``Schema`` in the ``Event`` header. The default value, ``retry``,
-                                       will fail the current batch and try again which matches the old
-                                       behavior. Other valid values are ``save``, which will write the
-                                       raw ``Event`` to the ``kite.error.dataset.uri`` dataset, and the
-                                       fully-qualified class name of an implementation of the
-                                       ``FailurePolicy.Builder`` interface.
-kite.error.dataset.uri        --       URI of the dataset where failed events are saved when
-                                       ``kite.failurePolicy`` is set to ``save``. **Required** when
-                                       the ``kite.failurePolicy`` is set to ``save``.
-auth.kerberosPrincipal        --       Kerberos user principal for secure authentication to HDFS
-auth.kerberosKeytab           --       Kerberos keytab location (local FS) for the principal
-auth.proxyUser                --       The effective user for HDFS actions, if different from
-                                       the kerberos principal
+**channel**                   --       与 Sink 绑定的 channel
+**type**                      --       组件名，这个是： org.apache.flume.sink.kite.DatasetSink
+**kite.dataset.uri**          --       要打开的数据集的 URI
+kite.repo.uri                 --       要打开的存储库的 URI（ **不建议使用** ，请改用 ``kite.dataset.uri`` ）
+kite.dataset.namespace        --       将写入记录的数据集命名空间（ **不建议使用** ，请改用 ``kite.dataset.uri`` ）
+kite.dataset.name             --       将写入记录的数据集名称（ **不建议使用** ，请改用 ``kite.dataset.uri`` ）
+kite.batchSize                100      每批中要处理的记录数
+kite.rollInterval             30       释放数据文件之前的最长等待时间（秒）
+kite.flushable.commitOnBatch  true     如果为 true，Flume 在每次批量操作 ``kite.batchSize`` 数据后提交事务并刷新 writer。 此设置仅适用于可刷新数据集。 如果为 true，则可以将具有提交数据的临时文件保留在数据集目录中。
+                                       需要手动恢复这些文件，以使数据对 DatasetReaders 可见。
+kite.syncable.syncOnBatch     true     接收器在提交事务时是否也将同步数据。 此设置仅适用于可同步数据集。 同步操作能保证数据将写入远程系统上的可靠存储上，同时保证数据已经离开Flume客户端的缓冲区（也就是 channel）。
+                                       当 ``thekite.flushable.commitOnBatch`` 属性设置为 false 时，此属性也必须设置为 false。
+kite.entityParser             avro     将 Flume event 转换为 kite 实体的转换器。取值可以是 avro 或者 ``EntityParser.Builder`` 接口实现类的全限定类名
+kite.failurePolicy            retry    发生不可恢复的异常时采取的策略。例如 event header 中缺少结构信息。默认采取重试的策略。
+                                       其他可选的值有： ``save`` ，这样会把 event 原始内容写入到 ``kite.error.dataset.uri`` 这个数据集。还可以填自定义的处理策略类的全限定类名（需实现 ``FailurePolicy.Builder`` 接口）
+kite.error.dataset.uri        --       保存失败的 event 存储的数据集。当上面的参数 ``kite.failurePolicy`` 设置为 ``save`` 时，此参数必须进行配置。
+auth.kerberosPrincipal        --       用于 HDFS 安全身份验证的 Kerberos 用户主体
+auth.kerberosKeytab           --       Kerberos 安全验证主体的 keytab 本地文件系统路径
+auth.proxyUser                --       HDFS 操作的用户，如果与 kerberos 主体不同的话
 ============================  =======  ===========================================================
 
 
 Kafka Sink
 ~~~~~~~~~~
-This is a Flume Sink implementation that can publish data to a
-`Kafka <http://kafka.apache.org/>`_ topic. One of the objective is to integrate Flume
-with Kafka so that pull based processing systems can process the data coming
-through various Flume sources. This currently supports Kafka 0.9.x series of releases.
 
-This version of Flume no longer supports Older Versions (0.8.x) of Kafka.
+这个 Sink 可以把数据发送到 `Kafka <http://kafka.apache.org/>`_ topic上。目的就是将 Flume 与 Kafka 集成，以便基于拉的处理系统可以处理来自各种 Flume Source 的数据。目前支持 Kafka 0.9.x 发行版。
 
-Required properties are marked in bold font.
+Flume1.8 不再支持 Kafka 0.9.x（不包括0.9.x）以前的版本。
 
+必需的参数已用 **粗体** 标明。 
 
 ==================================  ===================  =============================================================================================
-Property Name                       Default              Description
+属性                                 默认值               解释
 ==================================  ===================  =============================================================================================
-**type**                            --                   Must be set to ``org.apache.flume.sink.kafka.KafkaSink``
-**kafka.bootstrap.servers**         --                   List of brokers Kafka-Sink will connect to, to get the list of topic partitions
-                                                         This can be a partial list of brokers, but we recommend at least two for HA.
-                                                         The format is comma separated list of hostname:port
-kafka.topic                         default-flume-topic  The topic in Kafka to which the messages will be published. If this parameter is configured,
-                                                         messages will be published to this topic.
-                                                         If the event header contains a "topic" field, the event will be published to that topic
-                                                         overriding the topic configured here.
-                                                         Arbitrary header substitution is supported, eg. %{header} is replaced with value of event header named "header".
-                                                         (If using the substitution, it is recommended to set "auto.create.topics.enable" property of Kafka broker to true.)
-flumeBatchSize                      100                  How many messages to process in one batch. Larger batches improve throughput while adding latency.
-kafka.producer.acks                 1                    How many replicas must acknowledge a message before its considered successfully written.
-                                                         Accepted values are 0 (Never wait for acknowledgement), 1 (wait for leader only), -1 (wait for all replicas)
-                                                         Set this to -1 to avoid data loss in some cases of leader failure.
-useFlumeEventFormat                 false                By default events are put as bytes onto the Kafka topic directly from the event body. Set to
-                                                         true to store events as the Flume Avro binary format. Used in conjunction with the same property
-                                                         on the KafkaSource or with the parseAsFlumeEvent property on the Kafka Channel this will preserve
-                                                         any Flume headers for the producing side.
-defaultPartitionId                  --                   Specifies a Kafka partition ID (integer) for all events in this channel to be sent to, unless
-                                                         overriden by ``partitionIdHeader``. By default, if this property is not set, events will be
-                                                         distributed by the Kafka Producer's partitioner - including by ``key`` if specified (or by a
-                                                         partitioner specified by ``kafka.partitioner.class``).
-partitionIdHeader                   --                   When set, the sink will take the value of the field named using the value of this property
-                                                         from the event header and send the message to the specified partition of the topic. If the
-                                                         value represents an invalid partition, an EventDeliveryException will be thrown. If the header value
-                                                         is present then this setting overrides ``defaultPartitionId``.
-allowTopicOverride                  true                 When set, the sink will allow a message to be produced into a topic specified by the ``topicHeader`` property (if provided).
-topicHeader                         topic                When set in conjunction with ``allowTopicOverride`` will produce a message into the value of the header named using the value of this property.
-                                                         Care should be taken when using in conjunction with the Kafka Source ``topicHeader`` property to avoid creating a loopback.
-kafka.producer.security.protocol    PLAINTEXT            Set to SASL_PLAINTEXT, SASL_SSL or SSL if writing to Kafka using some level of security. See below for additional info on secure setup.
-*more producer security props*                           If using SASL_PLAINTEXT, SASL_SSL or SSL refer to `Kafka security <http://kafka.apache.org/documentation.html#security>`_ for additional
-                                                         properties that need to be set on producer.
-Other Kafka Producer Properties     --                   These properties are used to configure the Kafka Producer. Any producer property supported
-                                                         by Kafka can be used. The only requirement is to prepend the property name with the prefix
-                                                         ``kafka.producer``.
-                                                         For example: kafka.producer.linger.ms
+**type**                            --                   组件名，这个是： ``org.apache.flume.sink.kafka.KafkaSink``
+**kafka.bootstrap.servers**         --                   Kafka Sink 使用的 Kafka 集群的实例列表，可以是实例的部分列表。但是更建议至少两个用于高可用（HA）支持。格式为 hostname:port，多个用逗号分隔
+kafka.topic                         default-flume-topic  用于发布消息的 Kafka topic 名称 。如果这个参数配置了值，消息就会被发布到这个 topic 上。如果event header中包含叫做“topic”的属性，
+                                                         event 就会被发布到 header 中指定的 topic 上，而不会发布到 ``kafka.topic`` 指定的 topic 上。支持任意的 header 属性动态替换，
+                                                         比如%{lyf}就会被 event header 中叫做“lyf”的属性值替换（如果使用了这种动态替换，建议将 Kafka 的 ``auto.create.topics.enable`` 属性设置为 ``true`` ）。
+flumeBatchSize                      100                  一批中要处理的消息数。设置较大的值可以提高吞吐量，但是会增加延迟。
+kafka.producer.acks                 1                    在考虑成功写入之前，要有多少个副本必须确认消息。可选值，0：（从不等待确认）；1：只等待leader确认；-1：等待所有副本确认。设置为-1可以避免某些情况 leader 实例失败的情况下丢失数据。
+useFlumeEventFormat                 false                默认情况下，会直接将 event body 的字节数组作为消息内容直接发送到 Kafka topic 。如果设置为true，会以 Flume Avro 二进制格式进行读取。
+                                                         与 Kafka Source 上的同名参数或者 Kafka channel 的 ``parseAsFlumeEvent`` 参数相关联，这样以对象的形式处理能使生成端发送过来的 event header 信息得以保留。
+defaultPartitionId                  --                   指定所有 event 将要发送到的 Kafka 分区ID，除非被 ``partitionIdHeader`` 参数的配置覆盖。
+                                                         默认情况下，如果没有设置此参数，event 会被 Kafka 生产者的分发程序分发，包括 key（如果指定了的话），或者被 ``kafka.partitioner.class`` 指定的分发程序来分发
+partitionIdHeader                   --                   设置后，接收器将使用 event header 中使用此属性的值命名的字段的值，并将消息发送到 topic 的指定分区。 如果该值表示无效分区，则将抛出 EventDeliveryException。
+                                                         如果存在标头值，则此设置将覆盖 ``defaultPartitionId`` 。假如这个参数设置为“lyf”，这个 Sink 就会读取 event header 中的 lyf 属性的值，用该值作为分区ID
+allowTopicOverride                  true                 如果设置为 ``true``，会读取 event header 中的名为 ``topicHeader`` 的的属性值，用它作为目标 topic。
+topicHeader                         topic                与上面的 ``allowTopicOverride`` 一起使用，``allowTopicOverride`` 会用当前参数配置的名字从 event header 获取该属性的值，来作为目标 topic 名称
+kafka.producer.security.protocol    PLAINTEXT            设置使用哪种安全协议写入 Kafka。可选值：``SASL_PLAINTEXT`` 、 ``SASL_SSL`` 和 ``SSL``, 有关安全设置的其他信息，请参见下文。
+*more producer security props*                           如果使用了 ``SASL_PLAINTEXT`` 、 ``SASL_SSL`` 或 ``SSL`` 等安全协议，参考 `Kafka security <http://kafka.apache.org/documentation.html#security>`_ 来为生产者增加安全相关的参数配置
+Other Kafka Producer Properties     --                   其他一些 Kafka 生产者配置参数。任何 Kafka 支持的生产者参数都可以使用。唯一的要求是使用“kafka.producer.”这个前缀来配置参数，比如：``kafka.producer.linger.ms``
 ==================================  ===================  =============================================================================================
 
-.. note::   Kafka Sink uses the ``topic`` and ``key`` properties from the FlumeEvent headers to send events to Kafka.
-            If ``topic`` exists in the headers, the event will be sent to that specific topic, overriding the topic configured for the Sink.
-            If ``key`` exists in the headers, the key will used by Kafka to partition the data between the topic partitions. Events with same key
-            will be sent to the same partition. If the key is null, events will be sent to random partitions.
+.. note::   Kafka Sink使用 event header 中的 topic 和其他关键属性将 event 发送到 Kafka。 如果 header 中存在 topic，则会将event发送到该特定 topic，从而覆盖为Sink配置的 topic。
+            如果 header 中存在指定分区相关的参数，则Kafka将使用相关参数发送到指定分区。 header中特定参数相同的 event 将被发送到同一分区。 如果为空，则将 event 会被发送到随机分区。
+            Kafka Sink 还提供了key.deserializer（org.apache.kafka.common.serialization.StringSerializer） 和value.deserializer（org.apache.kafka.common.serialization.ByteArraySerializer）的默认值，不建议修改这些参数。
 
-The Kafka sink also provides defaults for the key.serializer(org.apache.kafka.common.serialization.StringSerializer)
-and value.serializer(org.apache.kafka.common.serialization.ByteArraySerializer). Modification of these parameters is not recommended.
-
-Deprecated Properties
+弃用的一些参数：
 
 ===============================  ===================  =============================================================================================
-Property Name                    Default              Description
+属性                              默认值               解释
 ===============================  ===================  =============================================================================================
-brokerList                       --                   Use kafka.bootstrap.servers
-topic                            default-flume-topic  Use kafka.topic
-batchSize                        100                  Use kafka.flumeBatchSize
-requiredAcks                     1                    Use kafka.producer.acks
-
+brokerList                       --                   改用 kafka.bootstrap.servers
+topic                            default-flume-topic  改用 kafka.topic
+batchSize                        100                  改用 kafka.flumeBatchSize
+requiredAcks                     1                    改用 kafka.producer.acks
 ===============================  ===================  =============================================================================================
 
-An example configuration of a Kafka sink is given below. Properties starting
-with the prefix ``kafka.producer`` the Kafka producer. The properties that are passed when creating the Kafka
-producer are not limited to the properties given in this example.
-Also it is possible to include your custom properties here and access them inside
-the preprocessor through the Flume Context object passed in as a method
-argument.
+下面给出 Kafka Sink 的配置示例。Kafka 生产者的属性都是以 kafka.producer 为前缀。Kafka 生产者的属性不限于下面示例的几个。此外，可以在此处包含您的自定义属性，并通过作为方法参数传入的Flume Context对象在预处理器中访问它们。
 
 .. code-block:: properties
 
@@ -2844,32 +2467,26 @@ argument.
 
 **Security and Kafka Sink:**
 
-Secure authentication as well as data encryption is supported on the communication channel between Flume and Kafka.
-For secure authentication SASL/GSSAPI (Kerberos V5) or SSL (even though the parameter is named SSL, the actual protocol is a TLS implementation) can be used from Kafka version 0.9.0.
+Flume 和 Kafka 之间通信渠道是支持安全认证和数据加密的。对于身份安全验证，可以使用 Kafka 0.9.0版本中的 SASL、GSSAPI （Kerberos V5） 或 SSL （虽然名字是SSL，实际是TLS实现）。
 
-As of now data encryption is solely provided by SSL/TLS.
+截至目前，数据加密仅由SSL / TLS提供。
 
-Setting ``kafka.producer.security.protocol`` to any of the following value means:
+Setting kafka.producer.security.protocol to any of the following value means:
 
-- **SASL_PLAINTEXT** - Kerberos or plaintext authentication with no data encryption
-- **SASL_SSL** - Kerberos or plaintext authentication with data encryption
-- **SSL** - TLS based encryption with optional authentication.
+当你把 kafka.producer.security.protocol 设置下面任何一个值的时候意味着：
+
+- **SASL_PLAINTEXT** - 无数据加密的 Kerberos 或明文认证
+- **SASL_SSL** - 有数据加密的 Kerberos 或明文认证
+- **SSL** - 基于TLS的加密，可选的身份验证
 
 .. warning::
-    There is a performance degradation when SSL is enabled,
-    the magnitude of which depends on the CPU type and the JVM implementation.
-    Reference: `Kafka security overview <http://kafka.apache.org/documentation#security_overview>`_
-    and the jira for tracking this issue:
-    `KAFKA-2561 <https://issues.apache.org/jira/browse/KAFKA-2561>`__
-
+    启用 SSL 时性能会下降，影响大小取决于 CPU 和 JVM 实现。参考 `Kafka security overview <http://kafka.apache.org/documentation#security_overview>`_ 和 `KAFKA-2561 <https://issues.apache.org/jira/browse/KAFKA-2561>`_ 。
 
 **TLS and Kafka Sink:**
 
-Please read the steps described in `Configuring Kafka Clients SSL <http://kafka.apache.org/documentation#security_configclients>`_
-to learn about additional configuration settings for fine tuning for example any of the following:
-security provider, cipher suites, enabled protocols, truststore or keystore types.
+请阅读 `Configuring Kafka Clients SSL <http://kafka.apache.org/documentation#security_configclients>`_ 中描述的步骤来了解用于微调的其他配置设置，例如下面的几个例子：启用安全策略、密码套件、启用协议、信任库或秘钥库类型。
 
-Example configuration with server side authentication and data encryption.
+服务端认证和数据加密的一个配置实例：
 
 .. code-block:: properties
 
@@ -2881,32 +2498,25 @@ Example configuration with server side authentication and data encryption.
     a1.sinks.sink1.kafka.producer.ssl.truststore.password = <password to access the truststore>
 
 
-Note: By default the property ``ssl.endpoint.identification.algorithm``
-is not defined, so hostname verification is not performed.
-In order to enable hostname verification, set the following properties
+注意，默认情况下 ssl.endpoint.identification.algorithm 这个参数没有被定义，因此不会执行主机名验证。如果要启用主机名验证，请加入以下配置：
 
 .. code-block:: properties
 
     a1.sinks.sink1.kafka.producer.ssl.endpoint.identification.algorithm = HTTPS
 
-Once enabled, clients will verify the server's fully qualified domain name (FQDN)
-against one of the following two fields:
+开启后，客户端将根据以下两个字段之一验证服务器的完全限定域名（FQDN）：
 
 #) Common Name (CN) https://tools.ietf.org/html/rfc6125#section-2.3
 #) Subject Alternative Name (SAN) https://tools.ietf.org/html/rfc5280#section-4.2.1.6
 
-If client side authentication is also required then additionally the following should be added to Flume agent configuration.
-Each Flume agent has to have its client certificate which has to be trusted by Kafka brokers either
-individually or by their signature chain. Common example is to sign each client certificate by a single Root CA
-which in turn is trusted by Kafka brokers.
+如果还需要客户端身份验证，则还应在 Flume 配置中添加以下内容。 每个Flume 实例都必须拥有其客户证书，来被Kafka 实例单独或通过其签名链来信任。 常见示例是由 Kafka 信任的单个根CA签署每个客户端证书。
 
 .. code-block:: properties
 
     a1.sinks.sink1.kafka.producer.ssl.keystore.location = /path/to/client.keystore.jks
     a1.sinks.sink1.kafka.producer.ssl.keystore.password = <password to access the keystore>
 
-If keystore and key use different password protection then ``ssl.key.password`` property will
-provide the required additional secret for producer keystore:
+如果密钥库和密钥使用不同的密码保护，则 ``ssl.key.password`` 属性将为生产者密钥库提供所需的额外密码：
 
 .. code-block:: properties
 
@@ -2915,17 +2525,16 @@ provide the required additional secret for producer keystore:
 
 **Kerberos and Kafka Sink:**
 
-To use Kafka sink with a Kafka cluster secured with Kerberos, set the ``producer.security.protocol`` property noted above for producer.
-The Kerberos keytab and principal to be used with Kafka brokers is specified in a JAAS file's "KafkaClient" section. "Client" section describes the Zookeeper connection if needed.
-See `Kafka doc <http://kafka.apache.org/documentation.html#security_sasl_clientconfig>`_
-for information on the JAAS file contents. The location of this JAAS file and optionally the system wide kerberos configuration can be specified via JAVA_OPTS in flume-env.sh:
+要将Kafka Sink 与使用 Kerberos 保护的Kafka群集一起使用，请为生产者设置上面提到的 ``producer.security.protocol`` 属性。 与 Kafka 实例一起使用的 Kerberos keytab 和主体在 JAAS 文件的“KafkaClient”部分中指定。
+ “客户端”部分描述了 Zookeeper 连接信息（如果需要）。 有关 JAAS 文件内容的信息，请参阅 `Kafka doc <http://kafka.apache.org/documentation.html#security_sasl_clientconfig>`_。 
+ 可以通过 flume-env.sh 中的 JAVA_OPTS 指定此 JAAS 文件的位置以及系统范围的 kerberos 配置：
 
 .. code-block:: properties
 
     JAVA_OPTS="$JAVA_OPTS -Djava.security.krb5.conf=/path/to/krb5.conf"
     JAVA_OPTS="$JAVA_OPTS -Djava.security.auth.login.config=/path/to/flume_jaas.conf"
 
-Example secure configuration using SASL_PLAINTEXT:
+使用 SASL_PLAINTEXT 的示例安全配置：
 
 .. code-block:: properties
 
@@ -2937,7 +2546,7 @@ Example secure configuration using SASL_PLAINTEXT:
     a1.sinks.sink1.kafka.producer.sasl.kerberos.service.name = kafka
 
 
-Example secure configuration using SASL_SSL:
+使用 SASL_SSL 的安全配置范例：
 
 .. code-block:: properties
 
@@ -2951,10 +2560,8 @@ Example secure configuration using SASL_SSL:
     a1.sinks.sink1.kafka.producer.ssl.truststore.password = <password to access the truststore>
 
 
-Sample JAAS file. For reference of its content please see client config sections of the desired authentication mechanism (GSSAPI/PLAIN)
-in Kafka documentation of `SASL configuration <http://kafka.apache.org/documentation#security_sasl_clientconfig>`_.
-Unlike the Kafka Source or Kafka Channel a "Client" section is not required, unless it is needed by other connecting components. Also please make sure
-that the operating system user of the Flume processes has read privileges on the jaas and keytab files.
+JAAS 文件配置示例。有关其内容的参考，请参阅Kafka文档 `SASL configuration <http://kafka.apache.org/documentation#security_sasl_clientconfig>`_ 中关于所需认证机制（GSSAPI/PLAIN）的客户端配置部分。
+与 Kafka Source 和 Kafka Channel 不同，“Client”部分并不是必须的，除非其他组件需要它，否则不必要这样做。 另外，请确保 Flume 进程的操作系统用户对 JAAS 和 keytab 文件具有读权限。
 
 .. code-block:: javascript
 
@@ -2970,48 +2577,40 @@ that the operating system user of the Flume processes has read privileges on the
 HTTP Sink
 ~~~~~~~~~
 
-Behaviour of this sink is that it will take events from the channel, and
-send those events to a remote service using an HTTP POST request. The event
-content is sent as the POST body.
+HTTP Sink 从 channel 中获取 event，然后再向远程 HTTP 接口 POST 发送请求，event 内容作为 POST 的正文发送。
 
-Error handling behaviour of this sink depends on the HTTP response returned
-by the target server. The sink backoff/ready status is configurable, as is the
-transaction commit/rollback result and whether the event contributes to the
-successful event drain count.
+错误处理取决于目标服务器返回的HTTP响应代码。 接收器的``退避``和``就绪``状态是可配置的，事务提交/回滚结果以及 event 是否发送成功在内部指标计数器中也是可配置的。 
 
-Any malformed HTTP response returned by the server where the status code is
-not readable will result in a backoff signal and the event is not consumed
-from the channel.
+状态代码不可读的服务器返回的任何格式错误的 HTTP 响应都将产生``退避``信号，并且不会从 channel 中消耗该event。
 
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 ========================== ================= ===========================================================================================
-Property Name              Default           Description
+属性                        默认值            解释
 ========================== ================= ===========================================================================================
-**channel**                --
-**type**                   --                The component type name, needs to be ``http``.
-**endpoint**               --                The fully qualified URL endpoint to POST to
-connectTimeout             5000              The socket connection timeout in milliseconds
-requestTimeout             5000              The maximum request processing time in milliseconds
-contentTypeHeader          text/plain        The HTTP Content-Type header
-acceptHeader               text/plain        The HTTP Accept header value
-defaultBackoff             true              Whether to backoff by default on receiving all HTTP status codes
-defaultRollback            true              Whether to rollback by default on receiving all HTTP status codes
-defaultIncrementMetrics    false             Whether to increment metrics by default on receiving all HTTP status codes
-backoff.CODE               --                Configures a specific backoff for an individual (i.e. 200) code or a group (i.e. 2XX) code
-rollback.CODE              --                Configures a specific rollback for an individual (i.e. 200) code or a group (i.e. 2XX) code
-incrementMetrics.CODE      --                Configures a specific metrics increment for an individual (i.e. 200) code or a group (i.e. 2XX) code
+**channel**                --                与 Sink 绑定的 channel
+**type**                   --                组件名，这个是： ``http``.
+**endpoint**               --                将要 POST 提交数据接口的绝对地址
+connectTimeout             5000              连接超时，单位：毫秒
+requestTimeout             5000              一次请求操作的最大超时时间，单位：毫秒
+contentTypeHeader          text/plain        HTTP请求的Content-Type请求头
+acceptHeader               text/plain        HTTP请求的Accept 请求头
+defaultBackoff             true              是否默认启用退避机制，如果配置的 ``backoff.CODE`` 没有匹配到某个 http 状态码，默认就会使用这个参数值来决定是否退避
+defaultRollback            true              是否默认启用回滚机制，如果配置的 ``rollback.CODE`` 没有匹配到某个 http 状态码，默认会使用这个参数值来决定是否回滚
+defaultIncrementMetrics    false             是否默认进行统计计数，如果配置的 ``incrementMetrics.CODE`` 没有匹配到某个 http 状态码，默认会使用这个参数值来决定是否参与计数
+backoff.CODE               --                配置某个 http 状态码是否启用退避机制（支持200这种精确匹配和2XX一组状态码匹配模式）
+rollback.CODE              --                配置某个 http 状态码是否启用回滚机制（支持200这种精确匹配和2XX一组状态码匹配模式）
+incrementMetrics.CODE      --                配置某个 http 状态码是否参与计数（支持200这种精确匹配和2XX一组状态码匹配模式）
 ========================== ================= ===========================================================================================
 
-Note that the most specific HTTP status code match is used for the backoff,
-rollback and incrementMetrics configuration options. If there are configuration
-values for both 2XX and 200 status codes, then 200 HTTP codes will use the 200
-value, and all other HTTP codes in the 201-299 range will use the 2XX value.
+注意 backoff, rollback 和 incrementMetrics 的 code 配置通常都是用具体的HTTP状态码，如果2xx和200这两种配置同时存在，则200的状态码会被精确匹配，其余200~299（除了200以外）之间的状态码会被2xx匹配。
 
-Any empty or null events are consumed without any request being made to the
-HTTP endpoint.
+.. hint:: Flume里面好多组件都有这个退避机制，其实就是下一级目标没有按照预期执行的时候，会执行一个延迟操作。比如向HTTP接口提交数据发生了错误触发了退避机制生效，系统等待30秒再执行后续的提交操作，
+          如果再次发生错误则等待的时间会翻倍，直到达到系统设置的最大等待上限。通常在重试成功后退避就会被重置，下次遇到错误重新开始计算等待的时间。
 
-Example for agent named a1:
+任何空的或者为 null 的 event 不会被提交到HTTP接口上。
+
+配置范例：   
 
 .. code-block:: properties
 
@@ -3038,19 +2637,17 @@ Example for agent named a1:
 Custom Sink
 ~~~~~~~~~~~
 
-A custom sink is your own implementation of the Sink interface. A custom
-sink's class and its dependencies must be included in the agent's classpath
-when starting the Flume agent. The type of the custom sink is its FQCN.
-Required properties are in **bold**.
+你可以自己写一个 Sink 接口的实现类。启动 Flume 时候必须把你自定义 Sink 所依赖的其他类配置进 classpath 内。custom source 在写配置文件的 type 时候填你的全限定类名。
+必需的参数已用 **粗体** 标明。      
 
 =============  =======  ==============================================
-Property Name  Default  Description
+属性            默认值   解释
 =============  =======  ==============================================
-**channel**    --
-**type**       --       The component type name, needs to be your FQCN
+**channel**    --       与 Sink 绑定的 channe
+**type**       --       组件名，这个填你自定义class的全限定类名
 =============  =======  ==============================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3062,41 +2659,37 @@ Example for agent named a1:
 Flume Channels
 --------------
 
-Channels are the repositories where the events are staged on a agent.
-Source adds the events and Sink removes it.
+channel 是在 agent 上暂存 event 的缓冲池。 event由source添加，由sink消费后删除。
 
 Memory Channel
 ~~~~~~~~~~~~~~
 
-The events are stored in an in-memory queue with configurable max size. It's
-ideal for flows that need higher throughput and are prepared to lose the staged
-data in the event of a agent failures.
-Required properties are in **bold**.
+内存 channel 是把 event 队列存储到内存上，队列的最大数量就是 ``capacity`` 的设定值。它非常适合对吞吐量有较高要求的场景，但也是有代价的，当发生故障的时候会丢失当时内存中的所有 event。
+必需的参数已用 **粗体** 标明。      
 
 ============================  ================  ===============================================================================
-Property Name                 Default           Description
+属性                           默认值            解释
 ============================  ================  ===============================================================================
-**type**                      --                The component type name, needs to be ``memory``
-capacity                      100               The maximum number of events stored in the channel
-transactionCapacity           100               The maximum number of events the channel will take from a source or give to a
-                                                sink per transaction
-keep-alive                    3                 Timeout in seconds for adding or removing an event
-byteCapacityBufferPercentage  20                Defines the percent of buffer between byteCapacity and the estimated total size
-                                                of all events in the channel, to account for data in headers. See below.
-byteCapacity                  see description   Maximum total **bytes** of memory allowed as a sum of all events in this channel.
-                                                The implementation only counts the Event ``body``, which is the reason for
-                                                providing the ``byteCapacityBufferPercentage`` configuration parameter as well.
-                                                Defaults to a computed value equal to 80% of the maximum memory available to
-                                                the JVM (i.e. 80% of the -Xmx value passed on the command line).
-                                                Note that if you have multiple memory channels on a single JVM, and they happen
-                                                to hold the same physical events (i.e. if you are using a replicating channel
-                                                selector from a single source) then those event sizes may be double-counted for
-                                                channel byteCapacity purposes.
-                                                Setting this value to ``0`` will cause this value to fall back to a hard
-                                                internal limit of about 200 GB.
+**type**                      --                组件名，这个是： ``memory``
+capacity                      100               内存中存储 event 的最大数
+transactionCapacity           100               source 或者 sink 每个事务中存取 event 的操作数量（不能比 ``capacity`` 大）
+keep-alive                    3                 添加或删除一个 event 的超时时间，单位：秒
+byteCapacityBufferPercentage  20                指定 event header 所占空间大小与 channel 中所有 event 的总大小之间的百分比
+byteCapacity                                    Channel 中最大允许存储所有 event 的总字节数（bytes）。默认情况下会使用JVM可用内存的80%作为最大可用内存（就是JVM启动参数里面配置的-Xmx的值）。
+                                                计算总字节时只计算 event 的主体，这也是提供 ``byteCapacityBufferPercentage`` 配置参数的原因。注意，当你在一个 agent 里面有多个内存 channel 的时候，
+                                                而且碰巧这些 channel 存储相同的物理 event（例如：这些 channel 通过复制机制（ `复制选择器`_ ）接收同一个 source 中的 event），
+                                                这时候这些 event 占用的空间是累加的，并不会只计算一次。如果这个值设置为0（不限制），就会达到200G左右的内部硬件限制。
 ============================  ================  ===============================================================================
 
-Example for agent named a1:
+.. hint:: 举2个例子来帮助理解最后两个参数吧：
+
+          两个例子都有共同的前提，假设JVM最大的可用内存是100M（或者说JVM启动时指定了-Xmx=100m）。
+
+          例子1： ``byteCapacityBufferPercentage`` 设置为20， ``byteCapacity`` 设置为52428800（就是50M），此时内存中所有 event body 的总大小就被限制为50M *（1-20%）=40M，内存channel可用内存是50M。
+
+          例子2： ``byteCapacityBufferPercentage`` 设置为10， ``byteCapacity`` 不设置，此时内存中所有 event body 的总大小就被限制为100M*80%*（1-10%）=72M，内存channel可用内存是80M。
+
+配置范例：   
 
 .. code-block:: properties
 
@@ -3111,33 +2704,30 @@ Example for agent named a1:
 JDBC Channel
 ~~~~~~~~~~~~
 
-The events are stored in a persistent storage that's backed by a database.
-The JDBC channel currently supports embedded Derby. This is a durable channel
-that's ideal for flows where recoverability is important.
-Required properties are in **bold**.
+JDBC Channel会通过一个数据库把event持久化存储。目前只支持Derby。这是一个可靠的channel，非常适合那些注重可恢复性的流使用。
+必需的参数已用 **粗体** 标明。      
 
 ==========================  ====================================  =================================================
-Property Name               Default                               Description
+属性                         默认值                                解释
 ==========================  ====================================  =================================================
-**type**                    --                                    The component type name, needs to be ``jdbc``
-db.type                     DERBY                                 Database vendor, needs to be DERBY.
-driver.class                org.apache.derby.jdbc.EmbeddedDriver  Class for vendor's JDBC driver
-driver.url                  (constructed from other properties)   JDBC connection URL
-db.username                 "sa"                                  User id for db connection
-db.password                 --                                    password for db connection
-connection.properties.file  --                                    JDBC Connection property file path
-create.schema               true                                  If true, then creates db schema if not there
-create.index                true                                  Create indexes to speed up lookups
-create.foreignkey           true
-transaction.isolation       "READ_COMMITTED"                      Isolation level for db session READ_UNCOMMITTED,
-                                                                  READ_COMMITTED, SERIALIZABLE, REPEATABLE_READ
-maximum.connections         10                                    Max connections allowed to db
-maximum.capacity            0 (unlimited)                         Max number of events in the channel
-sysprop.*                                                         DB Vendor specific properties
-sysprop.user.home                                                 Home path to store embedded Derby database
+**type**                    --                                    组件名，这个是： ``jdbc``
+db.type                     DERBY                                 使用的数据库类型，目前只支持 DERBY.
+driver.class                org.apache.derby.jdbc.EmbeddedDriver  所使用数据库的 JDBC 驱动类
+driver.url                  (constructed from other properties)   JDBC 连接的 URL
+db.username                 "sa"                                  连接数据库使用的用户名
+db.password                 --                                    连接数据库使用的密码
+connection.properties.file  --                                    JDBC连接属性的配置文件
+create.schema               true                                  如果设置为 ``true`` ，没有数据表的时候会自动创建
+create.index                true                                  是否创建索引来加快查询速度
+create.foreignkey           true                                  是否创建外键
+transaction.isolation       "READ_COMMITTED"                      面向连接的隔离级别，可选值： ``READ_UNCOMMITTED`` , ``READ_COMMITTED``, ``SERIALIZABLE``, ``REPEATABLE_READ``
+maximum.connections         10                                    数据库的最大连接数
+maximum.capacity            0 (unlimited)                         channel 中存储 event 的最大数
+sysprop.*                                                         针对不同DB的特定属性
+sysprop.user.home                                                 Derby 的存储主路径
 ==========================  ====================================  =================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3147,90 +2737,71 @@ Example for agent named a1:
 Kafka Channel
 ~~~~~~~~~~~~~
 
-The events are stored in a Kafka cluster (must be installed separately). Kafka provides high availability and
-replication, so in case an agent or a kafka broker crashes, the events are immediately available to other sinks
+将 event 存储到Kafka集群（必须单独安装）。Kafka提供了高可用性和复制机制，因此如果Flume实例或者 Kafka 的实例挂掉，能保证event数据随时可用。
+Kafka channel可以用于多种场景：
 
-The Kafka channel can be used for multiple scenarios:
-
-#. With Flume source and sink - it provides a reliable and highly available channel for events
-#. With Flume source and interceptor but no sink - it allows writing Flume events into a Kafka topic, for use by other apps
-#. With Flume sink, but no source - it is a low-latency, fault tolerant way to send events from Kafka to Flume sinks such as HDFS, HBase or Solr
+#. 与source和sink一起：给所有event提供一个可靠、高可用的channel。
+#. 与source、interceptor一起，但是没有sink：可以把所有event写入到Kafka的topic中，来给其他的应用使用。
+#. 与sink一起，但是没有source：提供了一种低延迟、容错高的方式将event发送的各种接收器上，比如：HDFS、HBase、Solr。
 
 
-This version of Flume requires Kafka version 0.9 or greater due to the reliance on the Kafka clients shipped with that version. The configuration of
-the channel has changed compared to previous flume versions.
+由于依赖于该版本附带的Kafka客户端，Flume1.8需要Kafka 0.9或更高版本。 与之前的flume版本相比，channel的配置发生了一些变化。
 
-The configuration parameters are organized as such:
+配置参数组织如下：
 
-#. Configuration values related to the channel generically are applied at the channel config level, eg: a1.channel.k1.type =
-#. Configuration values related to Kafka or how the Channel operates are prefixed with "kafka.", (this are analgous to CommonClient Configs) eg: a1.channels.k1.kafka.topic and a1.channels.k1.kafka.bootstrap.servers. This is not dissimilar to how the hdfs sink operates
-#. Properties specific to the producer/consumer are prefixed by kafka.producer or kafka.consumer
-#. Where possible, the Kafka paramter names are used, eg: bootstrap.servers and acks
+#. 通常与channel相关的配置值应用于channel配置级别，比如：a1.channel.k1.type =
+#. 与Kafka相关的配置值或Channel运行的以“kafka.”为前缀（这与CommonClient Configs类似），例如：``a1.channels.k1.kafka.topic`` 和 ``a1.channels.k1.kafka.bootstrap.servers``。 这与hdfs sink的运行方式没有什么不同
+#. 特定于生产者/消费者的属性以kafka.producer或kafka.consumer为前缀
+#. 可能的话，使用Kafka的参数名称，例如：bootstrap.servers 和 acks
 
-This version of flume is backwards-compatible with previous versions, however deprecated properties are indicated in the table below and a warning message
-is logged on startup when they are present in the configuration file.
+当前Flume版本是向下兼容的，但是第二个表中列出了一些不推荐使用的属性，并且当它们出现在配置文件中时，会在启动时打印警告日志。
 
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
-=======================================  ==========================  ===============================================================================================================
-Property Name                            Default                     Description
-=======================================  ==========================  ===============================================================================================================
-**type**                                 --                          The component type name, needs to be ``org.apache.flume.channel.kafka.KafkaChannel``
-**kafka.bootstrap.servers**              --                          List of brokers in the Kafka cluster used by the channel
-                                                                     This can be a partial list of brokers, but we recommend at least two for HA.
-                                                                     The format is comma separated list of hostname:port
-kafka.topic                              flume-channel               Kafka topic which the channel will use
-kafka.consumer.group.id                  flume                       Consumer group ID the channel uses to register with Kafka.
-                                                                     Multiple channels must use the same topic and group to ensure that when one agent fails another can get the data
-                                                                     Note that having non-channel consumers with the same ID can lead to data loss.
-
-parseAsFlumeEvent                        true                        Expecting Avro datums with FlumeEvent schema in the channel.
-                                                                     This should be true if Flume source is writing to the channel and false if other producers are
-                                                                     writing into the topic that the channel is using. Flume source messages to Kafka can be parsed outside of Flume by using
-                                                                     org.apache.flume.source.avro.AvroFlumeEvent provided by the flume-ng-sdk artifact
-migrateZookeeperOffsets                  true                        When no Kafka stored offset is found, look up the offsets in Zookeeper and commit them to Kafka.
-                                                                     This should be true to support seamless Kafka client migration from older versions of Flume. Once migrated this can be set
-                                                                     to false, though that should generally not be required. If no Zookeeper offset is found the kafka.consumer.auto.offset.reset
-                                                                     configuration defines how offsets are handled.
-pollTimeout                              500                         The amount of time(in milliseconds) to wait in the "poll()" call of the consumer.
+=======================================  ==========================  ==========================================================
+属性                                      默认值                      解释
+=======================================  ==========================  ==========================================================
+**type**                                 --                          组件名，这个是： ``org.apache.flume.channel.kafka.KafkaChannel``
+**kafka.bootstrap.servers**              --                          channel使用的Kafka集群的实例列表，可以是实例的部分列表。但是更建议至少两个用于高可用支持。格式为hostname:port，多个用逗号分隔
+kafka.topic                              flume-channel               channel使用的Kafka topic
+kafka.consumer.group.id                  flume                       channel 用于向 Kafka 注册的消费者群组ID。 多个 channel 必须使用相同的 topic 和 group，以确保当一个Flume实例发生故障时，另一个实例可以获取数据。请注意，使用相同组ID的非channel消费者可能会导致数据丢失。
+parseAsFlumeEvent                        true                        是否以avro基准的 FlumeEvent 格式在channel中存储event。
+                                                                     如果是Flume的Source向channel的topic写入event则应设置为true；
+                                                                     如果其他生产者也在向channel的topic写入event则应设置为false。
+                                                                     通过使用 flume-ng-sdk 中的 ``org.apache.flume.source.avro.AvroFlumeEvent`` 可以在Kafka之外解析出Flume source的信息。
+migrateZookeeperOffsets                  true                        如果找不到Kafka存储的偏移量，去Zookeeper中查找偏移量并将它们提交给 Kafka 。 它应该设置为true以支持从旧版本的FlumeKafka客户端无缝迁移。 迁移后，可以将其设置为false，但通常不需要这样做。 如果在Zookeeper未找到偏移量，则可通过 ``kafka.consumer.auto.offset.reset`` 配置如何处理偏移量。
+pollTimeout                              500                         消费者调用poll()方法时的超时时间（毫秒）
                                                                      https://kafka.apache.org/090/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#poll(long)
-defaultPartitionId                       --                          Specifies a Kafka partition ID (integer) for all events in this channel to be sent to, unless
-                                                                     overriden by ``partitionIdHeader``. By default, if this property is not set, events will be
-                                                                     distributed by the Kafka Producer's partitioner - including by ``key`` if specified (or by a 
-                                                                     partitioner specified by ``kafka.partitioner.class``).
-partitionIdHeader                        --                          When set, the producer will take the value of the field named using the value of this property
-                                                                     from the event header and send the message to the specified partition of the topic. If the
-                                                                     value represents an invalid partition the event will not be accepted into the channel. If the header value
-                                                                     is present then this setting overrides ``defaultPartitionId``.
-kafka.consumer.auto.offset.reset         latest                      What to do when there is no initial offset in Kafka or if the current offset does not exist any more on the server
-                                                                     (e.g. because that data has been deleted):
-                                                                     earliest: automatically reset the offset to the earliest offset
-                                                                     latest: automatically reset the offset to the latest offset
-                                                                     none: throw exception to the consumer if no previous offset is found for the consumer\'s group
-                                                                     anything else: throw exception to the consumer.
-kafka.producer.security.protocol         PLAINTEXT                   Set to SASL_PLAINTEXT, SASL_SSL or SSL if writing to Kafka using some level of security. See below for additional info on secure setup.
-kafka.consumer.security.protocol         PLAINTEXT                   Same as kafka.producer.security.protocol but for reading/consuming from Kafka.
-*more producer/consumer security props*                              If using SASL_PLAINTEXT, SASL_SSL or SSL refer to `Kafka security <http://kafka.apache.org/documentation.html#security>`_ for additional
-                                                                     properties that need to be set on producer/consumer.
-=======================================  ==========================  ===============================================================================================================
+defaultPartitionId                       --                          指定channel中所有event将要存储的分区ID，除非被 ``partitionIdHeader`` 参数的配置覆盖。
+                                                                     默认情况下，如果没有设置此参数，event 会被Kafka生产者的分发程序分发，包括key（如果指定了的话），或者被 ``kafka.partitioner.class`` 指定的分发程序来分发。
+partitionIdHeader                        --                          从event header中读取要存储event到目标Kafka的分区的属性名。
+                                                                     如果设置了，生产者会从event header中获取次属性的值，并将消息发送到topic的指定分区。
+                                                                     如果该值表示的分区无效，则event不会存入channel。如果该值有效，则会覆盖 ``defaultPartitionId`` 配置的分区ID。
+kafka.consumer.auto.offset.reset         latest                      当Kafka中没有初始偏移量或者当前偏移量已经不在当前服务器上时（比如数据已经被删除）该怎么办。
+                                                                     earliest：自动重置偏移量到最早的位置；
+                                                                     latest：自动重置偏移量到最新的位置；
+                                                                     none：如果没有为消费者的组找到任何先前的偏移量，则向消费者抛出异常；
+                                                                     else：向消费者抛出异常。
+kafka.producer.security.protocol         PLAINTEXT                   设置使用哪种安全协议写入Kafka。可选值：``SASL_PLAINTEXT``、``SASL_SSL`` 和 ``SSL``有关安全设置的其他信息，请参见下文。
+kafka.consumer.security.protocol         PLAINTEXT                   与上面的相同，只不过是用于消费者。
+*more producer/consumer security props*                              如果使用了 ``SASL_PLAINTEXT``、``SASL_SSL`` 或 ``SSL`` 等安全协议，参考 `Kafka security <http://kafka.apache.org/documentation.html#security>`_ 来为生产者、消费者增加安全相关的参数配置
+=======================================  ==========================  ==========================================================
 
-Deprecated Properties
+下表是弃用的一些参数
 
-================================  ==========================  ===============================================================================================================
-Property Name                     Default                     Description
-================================  ==========================  ===============================================================================================================
-brokerList                        --                          List of brokers in the Kafka cluster used by the channel
-                                                              This can be a partial list of brokers, but we recommend at least two for HA.
-                                                              The format is comma separated list of hostname:port
-topic                             flume-channel               Use kafka.topic
-groupId                           flume                       Use kafka.consumer.group.id
-readSmallestOffset                false                       Use kafka.consumer.auto.offset.reset
+================================  ==========================  =============================================================
+属性                               默认值                      解释
+================================  ==========================  =============================================================
+brokerList                        --                          改用 kafka.bootstrap.servers
+topic                             flume-channel               改用 kafka.topic
+groupId                           flume                       改用 kafka.consumer.group.id
+readSmallestOffset                false                       改用 kafka.consumer.auto.offset.reset
 
-================================  ==========================  ===============================================================================================================
+================================  ==========================  =============================================================
 
-.. note:: Due to the way the channel is load balanced, there may be duplicate events when the agent first starts up
+.. note:: 由于channel是负载均衡的，第一次启动时可能会有重复的event出现。
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3242,32 +2813,25 @@ Example for agent named a1:
 
 **Security and Kafka Channel:**
 
-Secure authentication as well as data encryption is supported on the communication channel between Flume and Kafka.
-For secure authentication SASL/GSSAPI (Kerberos V5) or SSL (even though the parameter is named SSL, the actual protocol is a TLS implementation) can be used from Kafka version 0.9.0.
+Flume 和 Kafka 之间通信渠道是支持安全认证和数据加密的。对于身份安全验证，可以使用 Kafka 0.9.0版本中的 SASL、GSSAPI （Kerberos V5） 或 SSL （虽然名字是SSL，实际是TLS实现）。
 
-As of now data encryption is solely provided by SSL/TLS.
+截至目前，数据加密仅由SSL / TLS提供。
 
-Setting ``kafka.producer|consumer.security.protocol`` to any of the following value means:
+当你把 ``kafka.producer（consumer）.security.protocol`` 设置下面任何一个值的时候意味着：
 
-- **SASL_PLAINTEXT** - Kerberos or plaintext authentication with no data encryption
-- **SASL_SSL** - Kerberos or plaintext authentication with data encryption
-- **SSL** - TLS based encryption with optional authentication.
+- **SASL_PLAINTEXT** - 无数据加密的 Kerberos 或明文认证
+- **SASL_SSL** - 有数据加密的 Kerberos 或明文认证
+- **SSL** - 基于TLS的加密，可选的身份验证。
 
 .. warning::
-    There is a performance degradation when SSL is enabled,
-    the magnitude of which depends on the CPU type and the JVM implementation.
-    Reference: `Kafka security overview <http://kafka.apache.org/documentation#security_overview>`_
-    and the jira for tracking this issue:
-    `KAFKA-2561 <https://issues.apache.org/jira/browse/KAFKA-2561>`_
+    启用 SSL 时性能会下降，影响大小取决于 CPU 和 JVM 实现。参考 `Kafka security overview <http://kafka.apache.org/documentation#security_overview>`_ 和 `KAFKA-2561 <https://issues.apache.org/jira/browse/KAFKA-2561>`_ 。
 
 
 **TLS and Kafka Channel:**
 
-Please read the steps described in `Configuring Kafka Clients SSL <http://kafka.apache.org/documentation#security_configclients>`_
-to learn about additional configuration settings for fine tuning for example any of the following:
-security provider, cipher suites, enabled protocols, truststore or keystore types.
+请阅读 `Configuring Kafka Clients SSL <http://kafka.apache.org/documentation#security_configclients>`_ 中描述的步骤来了解用于微调的其他配置设置，例如下面的几个例子：启用安全策略、密码套件、启用协议、信任库或秘钥库类型。
 
-Example configuration with server side authentication and data encryption.
+服务端认证和数据加密的一个配置实例：
 
 .. code-block:: properties
 
@@ -3283,25 +2847,19 @@ Example configuration with server side authentication and data encryption.
     a1.channels.channel1.kafka.consumer.ssl.truststore.password = <password to access the truststore>
 
 
-Note: By default the property ``ssl.endpoint.identification.algorithm``
-is not defined, so hostname verification is not performed.
-In order to enable hostname verification, set the following properties
+注意，默认情况下 ssl.endpoint.identification.algorithm 这个参数没有被定义，因此不会执行主机名验证。如果要启用主机名验证，请加入以下配置：
 
 .. code-block:: properties
 
     a1.channels.channel1.kafka.producer.ssl.endpoint.identification.algorithm = HTTPS
     a1.channels.channel1.kafka.consumer.ssl.endpoint.identification.algorithm = HTTPS
 
-Once enabled, clients will verify the server's fully qualified domain name (FQDN)
-against one of the following two fields:
+开启后，客户端将根据以下两个字段之一验证服务器的完全限定域名（FQDN）：
 
 #) Common Name (CN) https://tools.ietf.org/html/rfc6125#section-2.3
 #) Subject Alternative Name (SAN) https://tools.ietf.org/html/rfc5280#section-4.2.1.6
 
-If client side authentication is also required then additionally the following should be added to Flume agent configuration.
-Each Flume agent has to have its client certificate which has to be trusted by Kafka brokers either
-individually or by their signature chain. Common example is to sign each client certificate by a single Root CA
-which in turn is trusted by Kafka brokers.
+如果还需要客户端身份验证，则还应在 Flume 配置中添加以下内容。 每个Flume 实例都必须拥有其客户证书，来被Kafka 实例单独或通过其签名链来信任。 常见示例是由 Kafka 信任的单个根CA签署每个客户端证书。
 
 .. code-block:: properties
 
@@ -3310,8 +2868,7 @@ which in turn is trusted by Kafka brokers.
     a1.channels.channel1.kafka.consumer.ssl.keystore.location = /path/to/client.keystore.jks
     a1.channels.channel1.kafka.consumer.ssl.keystore.password = <password to access the keystore>
 
-If keystore and key use different password protection then ``ssl.key.password`` property will
-provide the required additional secret for both consumer and producer keystores:
+如果密钥库和密钥使用不同的密码保护，则ssl.key.password 属性将为消费者和生产者密钥库提供所需的额外密码：
 
 .. code-block:: properties
 
@@ -3321,17 +2878,15 @@ provide the required additional secret for both consumer and producer keystores:
 
 **Kerberos and Kafka Channel:**
 
-To use Kafka channel with a Kafka cluster secured with Kerberos, set the ``producer/consumer.security.protocol`` properties noted above for producer and/or consumer.
-The Kerberos keytab and principal to be used with Kafka brokers is specified in a JAAS file's "KafkaClient" section. "Client" section describes the Zookeeper connection if needed.
-See `Kafka doc <http://kafka.apache.org/documentation.html#security_sasl_clientconfig>`_
-for information on the JAAS file contents. The location of this JAAS file and optionally the system wide kerberos configuration can be specified via JAVA_OPTS in flume-env.sh:
+要将Kafka channel 与使用Kerberos保护的Kafka群集一起使用，请为生产者或消费者设置上面提到的producer（consumer）.security.protocol属性。 与Kafka实例一起使用的Kerberos keytab和主体在JAAS文件的“KafkaClient”部分中指定。 
+“客户端”部分描述了Zookeeper连接信息（如果需要）。 有关JAAS文件内容的信息，请参阅 `Kafka doc <http://kafka.apache.org/documentation.html#security_sasl_clientconfig>`_。 可以通过flume-env.sh中的JAVA_OPTS指定此JAAS文件的位置以及系统范围的 kerberos 配置：
 
 .. code-block:: properties
 
     JAVA_OPTS="$JAVA_OPTS -Djava.security.krb5.conf=/path/to/krb5.conf"
     JAVA_OPTS="$JAVA_OPTS -Djava.security.auth.login.config=/path/to/flume_jaas.conf"
 
-Example secure configuration using SASL_PLAINTEXT:
+使用 SASL_PLAINTEXT 的示例安全配置：
 
 .. code-block:: properties
 
@@ -3346,7 +2901,7 @@ Example secure configuration using SASL_PLAINTEXT:
     a1.channels.channel1.kafka.consumer.sasl.mechanism = GSSAPI
     a1.channels.channel1.kafka.consumer.sasl.kerberos.service.name = kafka
 
-Example secure configuration using SASL_SSL:
+使用 SASL_SSL 的安全配置范例：
 
 .. code-block:: properties
 
@@ -3366,11 +2921,8 @@ Example secure configuration using SASL_SSL:
     a1.channels.channel1.kafka.consumer.ssl.truststore.password = <password to access the truststore>
 
 
-Sample JAAS file. For reference of its content please see client config sections of the desired authentication mechanism (GSSAPI/PLAIN)
-in Kafka documentation of `SASL configuration <http://kafka.apache.org/documentation#security_sasl_clientconfig>`_.
-Since the Kafka Source may also connect to Zookeeper for offset migration, the "Client" section was also added to this example.
-This won't be needed unless you require offset migration, or you require this section for other secure components.
-Also please make sure that the operating system user of the Flume processes has read privileges on the jaas and keytab files.
+JAAS 文件配置示例。有关其内容的参考，请参阅Kafka文档 `SASL configuration <http://kafka.apache.org/documentation#security_sasl_clientconfig>`_ 中关于所需认证机制（GSSAPI/PLAIN）的客户端配置部分。由于Kafka Source 也可以连接 Zookeeper 以进行偏移迁移，因此“Client”部分也添加到此示例中。
+除非您需要偏移迁移，否则不必要这样做，或者您需要此部分用于其他安全组件。 另外，请确保Flume进程的操作系统用户对 JAAS 和 keytab 文件具有读权限。
 
 .. code-block:: javascript
 
@@ -3394,47 +2946,40 @@ Also please make sure that the operating system user of the Flume processes has 
 File Channel
 ~~~~~~~~~~~~
 
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 ================================================  ================================  ========================================================
-Property Name         Default                           Description
+属性                                               默认值                            解释
 ================================================  ================================  ========================================================
-**type**                                          --                                The component type name, needs to be ``file``.
-checkpointDir                                     ~/.flume/file-channel/checkpoint  The directory where checkpoint file will be stored
-useDualCheckpoints                                false                             Backup the checkpoint. If this is set to ``true``, ``backupCheckpointDir`` **must** be set
-backupCheckpointDir                               --                                The directory where the checkpoint is backed up to. This directory **must not** be the same as the data directories or the checkpoint directory
-dataDirs                                          ~/.flume/file-channel/data        Comma separated list of directories for storing log files. Using multiple directories on separate disks can improve file channel peformance
-transactionCapacity                               10000                             The maximum size of transaction supported by the channel
-checkpointInterval                                30000                             Amount of time (in millis) between checkpoints
-maxFileSize                                       2146435071                        Max size (in bytes) of a single log file
-minimumRequiredSpace                              524288000                         Minimum Required free space (in bytes). To avoid data corruption, File Channel stops accepting take/put requests when free space drops below this value
-capacity                                          1000000                           Maximum capacity of the channel
-keep-alive                                        3                                 Amount of time (in sec) to wait for a put operation
-use-log-replay-v1                                 false                             Expert: Use old replay logic
-use-fast-replay                                   false                             Expert: Replay without using queue
-checkpointOnClose                                 true                              Controls if a checkpoint is created when the channel is closed. Creating a checkpoint on close speeds up subsequent startup of the file channel by avoiding replay.
-encryption.activeKey                              --                                Key name used to encrypt new data
-encryption.cipherProvider                         --                                Cipher provider type, supported types: AESCTRNOPADDING
-encryption.keyProvider                            --                                Key provider type, supported types: JCEKSFILE
-encryption.keyProvider.keyStoreFile               --                                Path to the keystore file
-encrpytion.keyProvider.keyStorePasswordFile       --                                Path to the keystore password file
-encryption.keyProvider.keys                       --                                List of all keys (e.g. history of the activeKey setting)
-encyption.keyProvider.keys.*.passwordFile         --                                Path to the optional key password file
+**type**                                          --                                组件名，这个是： ``file``.
+checkpointDir                                     ~/.flume/file-channel/checkpoint  记录检查点的文件的存储目录
+useDualCheckpoints                                false                             是否备份检查点文件。如果设置为``true``，``backupCheckpointDir`` 参数必须设置。
+backupCheckpointDir                               --                                备份检查点的目录。 此目录不能与**数据目录**或检查点目录 ``checkpointDir`` 相同
+dataDirs                                          ~/.flume/file-channel/data        逗号分隔的目录列表，用于存储日志文件。 在不同物理磁盘上使用多个目录可以提高文件channel的性能
+transactionCapacity                               10000                             channel支持的单个事务最大容量
+checkpointInterval                                30000                             检查点的时间间隔，单位：毫秒
+maxFileSize                                       2146435071                        单个日志文件的最大字节数。这个默认值约等于2047MB
+minimumRequiredSpace                              524288000                         最小空闲空间的字节数。为了避免数据损坏，当空闲空间低于这个值的时候，文件channel将拒绝一切存取请求
+capacity                                          1000000                           channel的最大容量
+keep-alive                                        3                                 存入event的最大等待时间，单位：秒
+use-log-replay-v1                                 false                             （专家）是否使用老的回放逻辑
+                                                                                    （flume默认是使用v2版本的回放方法，但是如果v2版本不能正常工作可以考虑通过这个参数改为使用v1版本，v1版本是从flume1.2开始启用的，回放是指系统关闭或者崩溃前执行的校验检查点文件和文件channel记录是否一致程序）
+use-fast-replay                                   false                             （专家）是否开启快速回放（不适用队列）
+checkpointOnClose                                 true                              channel关闭时是否创建检查点文件。开启次功能可以避免回放提高下次文件channel启动的速度
+encryption.activeKey                              --                                加密数据所使用的key名称
+encryption.cipherProvider                         --                                加密类型，目前只支持：``AESCTRNOPADDING``
+encryption.keyProvider                            --                                key类型，目前只支持：``JCEKSFILE``
+encryption.keyProvider.keyStoreFile               --                                keystore 文件路径
+encrpytion.keyProvider.keyStorePasswordFile       --                                keystore 密码文件路径
+encryption.keyProvider.keys                       --                                所有key的列表，包含所有使用过的加密key名称
+encyption.keyProvider.keys.*.passwordFile         --                                可选的秘钥密码文件路径
 ================================================  ================================  ========================================================
 
-.. note:: By default the File Channel uses paths for checkpoint and data
-          directories that are within the user home as specified above.
-          As a result if you have more than one File Channel instances
-          active within the agent, only one will be able to lock the
-          directories and cause the other channel initialization to fail.
-          It is therefore necessary that you provide explicit paths to
-          all the configured channels, preferably on different disks.
-          Furthermore, as file channel will sync to disk after every commit,
-          coupling it with a sink/source that batches events together may
-          be necessary to provide good performance where multiple disks are
-          not available for checkpoint and data directories.
+.. note:: 默认情况下，文件channel使用默认的用户主目录内的检查点和数据目录的路径（说的就是上面的checkpointDir参数的默认值）。 如果一个agent中有多个活动的文件channel实例，而且都是用了默认的检查点文件，
+          则只有一个实例可以锁定目录并导致其他channel初始化失败。 因此，这时候有必要为所有已配置的channel显式配置不同的检查点文件目录，最好是在不同的磁盘上。 
+          此外，由于文件channel将在每次提交后会同步到磁盘，因此将其与将event一起批处理的sink/source耦合可能是必要的，以便在多个磁盘不可用于检查点和数据目录时提供良好的性能。
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3445,9 +2990,9 @@ Example for agent named a1:
 
 **Encryption**
 
-Below is a few sample configurations:
+下面是几个加密的例子：
 
-Generating a key with a password seperate from the key store password:
+用给定的秘钥库密码生成秘钥key-0：
 
 .. code-block:: bash
 
@@ -3455,7 +3000,7 @@ Generating a key with a password seperate from the key store password:
    -keysize 128 -validity 9000 -keystore test.keystore \
    -storetype jceks -storepass keyStorePassword
 
-Generating a key with the password the same as the key store password:
+使用相同的秘钥库密码生成秘钥key-1：
 
 .. code-block:: bash
 
@@ -3474,7 +3019,7 @@ Generating a key with the password the same as the key store password:
   a1.channels.c1.encryption.keyProvider.keyStorePasswordFile = /path/to/my.keystore.password
   a1.channels.c1.encryption.keyProvider.keys = key-0
 
-Let's say you have aged key-0 out and new files should be encrypted with key-1:
+假设你已不再使用key-0，并且已经使用key-1加密新文件：
 
 .. code-block:: properties
 
@@ -3485,7 +3030,7 @@ Let's say you have aged key-0 out and new files should be encrypted with key-1:
   a1.channels.c1.encryption.keyProvider.keyStorePasswordFile = /path/to/my.keystore.password
   a1.channels.c1.encryption.keyProvider.keys = key-0 key-1
 
-The same scenerio as above, however key-0 has its own password:
+跟上面一样的场景，只不过key-0有自己单独的密码：
 
 .. code-block:: properties
 
@@ -3501,45 +3046,34 @@ The same scenerio as above, however key-0 has its own password:
 Spillable Memory Channel
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The events are stored in an in-memory queue and on disk. The in-memory queue serves as the primary store and the disk as overflow.
-The disk store is managed using an embedded File channel. When the in-memory queue is full, additional incoming events are stored in
-the file channel. This channel is ideal for flows that need high throughput of memory channel during normal operation, but at the
-same time need the larger capacity of the file channel for better tolerance of intermittent sink side outages or drop in drain rates.
-The throughput will reduce approximately to file channel speeds during such abnormal situations. In case of an agent crash or restart,
-only the events stored on disk are recovered when the agent comes online. **This channel is currently experimental and
-not recommended for use in production.**
+这个channel会将event存储在内存队列和磁盘上。 内存队列充当主存储，内存装满之后会存到磁盘。 磁盘存储使用嵌入的文件channel进行管理。 当内存队列已满时，其他传入event将存储在文件channel中。
+ 这个channel非常适用于需要高吞吐量存储器channel的流，但同时需要更大容量的文件channel，以便更好地容忍间歇性接收器侧（sink）中断或消费速率降低。 
+在这种异常情况下，吞吐量将大致降低到文件channel速度。 如果agent程序崩溃或重新启动，只有存储在磁盘上的event能恢复。 **这个channel目前是实验性的，不建议用于生产环境**。
 
-Required properties are in **bold**. Please refer to file channel for additional required properties.
+.. hint:: 这个channel的机制十分像Windows系统里面的「虚拟内存」。兼顾了内存channel的高吞吐量和文件channel的可靠、大容量优势。
+
+必需的参数已用 **粗体** 标明。有关其他必需属性，请参阅文件channel。
 
 ============================  ================  =============================================================================================
-Property Name                 Default           Description
+属性                           默认值            解释
 ============================  ================  =============================================================================================
-**type**                      --                The component type name, needs to be ``SPILLABLEMEMORY``
-memoryCapacity                10000             Maximum number of events stored in memory queue. To disable use of in-memory queue, set this to zero.
-overflowCapacity              100000000         Maximum number of events stored in overflow disk (i.e File channel). To disable use of overflow, set this to zero.
-overflowTimeout               3                 The number of seconds to wait before enabling disk overflow when memory fills up.
-byteCapacityBufferPercentage  20                Defines the percent of buffer between byteCapacity and the estimated total size
-                                                of all events in the channel, to account for data in headers. See below.
-byteCapacity                  see description   Maximum **bytes** of memory allowed as a sum of all events in the memory queue.
-                                                The implementation only counts the Event ``body``, which is the reason for
-                                                providing the ``byteCapacityBufferPercentage`` configuration parameter as well.
-                                                Defaults to a computed value equal to 80% of the maximum memory available to
-                                                the JVM (i.e. 80% of the -Xmx value passed on the command line).
-                                                Note that if you have multiple memory channels on a single JVM, and they happen
-                                                to hold the same physical events (i.e. if you are using a replicating channel
-                                                selector from a single source) then those event sizes may be double-counted for
-                                                channel byteCapacity purposes.
-                                                Setting this value to ``0`` will cause this value to fall back to a hard
-                                                internal limit of about 200 GB.
-avgEventSize                  500               Estimated average size of events, in bytes, going into the channel
-<file channel properties>     see file channel  Any file channel property with the exception of 'keep-alive' and 'capacity' can be used.
-                                                The keep-alive of file channel is managed by Spillable Memory Channel. Use 'overflowCapacity'
-                                                to set the File channel's capacity.
+**type**                      --                组件名，这个是： ``SPILLABLEMEMORY``
+memoryCapacity                10000             内存队列存储的event最大数量。如果设置为0，则会禁用内存队列。
+overflowCapacity              100000000         磁盘（比如文件channel）上存储event的最大数量，如果设置为0，则会禁用磁盘存储
+overflowTimeout               3                 当内存占满时启用磁盘存储之前等待的最大秒数
+byteCapacityBufferPercentage  20                指定event header所占空间大小与channel中所有event的总大小之间的百分比
+byteCapacity                                    内存中最大允许存储event的总字节数。
+                                                默认情况下会使用JVM可用内存的80%作为最大可用内存（就是JVM启动参数里面配置的-Xmx的值）。 计算总字节时只计算event的主体，这也是提供 ``byteCapacityBufferPercentage`` 配置参数的原因。
+                                                注意，当你在一个agent里面有多个内存channel的时候，而且碰巧这些channel存储相同的物理event（例如：这些channel通过复制机制（`复制选择器`_）接收同一个source中的event），
+                                                这时候这些event占用的空间是累加的，并不会只计算一次。如果这个值设置为0（不限制），就会达到200G左右的内部硬件限制。
+avgEventSize                  500               估计进入channel的event的平均大小（单位：字节）
+<file channel properties>     see file channel  可以使用除“keep-alive”和“capacity”之外的任何文件channel属性。 文件channel的“keep-alive”由Spillable Memory Channel管理，
+                                                而channel容量则是通过使用 ``overflowCapacity`` 来设置。
 ============================  ================  =============================================================================================
 
-In-memory queue is considered full if either memoryCapacity or byteCapacity limit is reached.
+如果达到 ``memoryCapacity`` 或 ``byteCapacity`` 限制，则内存队列被视为已满。
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3551,7 +3085,7 @@ Example for agent named a1:
   a1.channels.c1.checkpointDir = /mnt/flume/checkpoint
   a1.channels.c1.dataDirs = /mnt/flume/data
 
-To disable the use of the in-memory queue and function like a file channel:
+禁用内存channel，只使用磁盘存储（就像文件channel那样）的例子：
 
 .. code-block:: properties
 
@@ -3563,7 +3097,7 @@ To disable the use of the in-memory queue and function like a file channel:
   a1.channels.c1.dataDirs = /mnt/flume/data
 
 
-To disable the use of overflow disk and function purely as a in-memory channel:
+禁用掉磁盘存储，只使用内存channel的例子：
 
 .. code-block:: properties
 
@@ -3576,36 +3110,32 @@ To disable the use of overflow disk and function purely as a in-memory channel:
 Pseudo Transaction Channel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. warning:: The Pseudo Transaction Channel is only for unit testing purposes
-             and is NOT meant for production use.
+.. warning:: 这个伪事务 channel 仅用于单元测试目的，不适用于生产用途。
 
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 =============  =======  ====================================================================================
-Property Name  Default  Description
+属性            默认值   解释
 =============  =======  ====================================================================================
-**type**       --       The component type name, needs to be ``org.apache.flume.channel.PseudoTxnMemoryChannel``
-capacity       50       The max number of events stored in the channel
-keep-alive     3        Timeout in seconds for adding or removing an event
+**type**       --       组件名，这个是： ``org.apache.flume.channel.PseudoTxnMemoryChannel``
+capacity       50       channel中存储的最大event数
+keep-alive     3        添加或删除event的超时时间，单位：秒
 =============  =======  ====================================================================================
 
 
 Custom Channel
 ~~~~~~~~~~~~~~
 
-A custom channel is your own implementation of the Channel interface. A
-custom channel's class and its dependencies must be included in the agent's
-classpath when starting the Flume agent. The type of the custom channel is
-its FQCN.
-Required properties are in **bold**.
+可以自己实现Channel接口来自定义一个channel，启动时这个自定义channel类以及依赖必须都放在flume agent的classpath中。
+必需的参数已用 **粗体** 标明。      
 
 =============  =======  =================================================================
-Property Name  Default  Description
+属性            默认值   解释
 =============  =======  =================================================================
-**type**       --       The component type name, needs to be a FQCN
+**type**       --       你自己实现的channel类的全限定类名，比如：org.example.myCustomChannel
 =============  =======  =================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3615,21 +3145,26 @@ Example for agent named a1:
 Flume Channel Selectors
 -----------------------
 
-If the type is not specified, then defaults to "replicating".
+如果没有手动配置，source的默认channel选择器类型是replicating（复制），当然这个选择器只针对source配置了多个channel的时候。
 
-Replicating Channel Selector (default)
+.. hint:: 既然叫做channel选择器，很容易猜得到这是source才有的配置。前面介绍过，一个souce可以向多个channel同时写数据，所以也就产生了以何种方式向多个channel写的问题（比如自带的复制选择器，会
+          把数据完整地发送到每一个channel，而多路分发选择器就可以通过配置来按照一定的规则进行分发，听起来很像负载均衡），channel选择器也就应运而生。
+
+复制选择器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Required properties are in **bold**.
+**它是默认的选择器**。
+
+必需的参数已用 **粗体** 标明。      
 
 ==================  ===========  ====================================================
-Property Name       Default      Description
+属性                 默认值       解释
 ==================  ===========  ====================================================
-selector.type       replicating  The component type name, needs to be ``replicating``
-selector.optional   --           Set of channels to be marked as ``optional``
+selector.type       replicating  ``replicating``
+selector.optional   --           指定哪些channel是可选的，多个用空格分开
 ==================  ===========  ====================================================
 
-Example for agent named a1 and it's source called r1:
+配置范例：
 
 .. code-block:: properties
 
@@ -3639,52 +3174,47 @@ Example for agent named a1 and it's source called r1:
   a1.sources.r1.channels = c1 c2 c3
   a1.sources.r1.selector.optional = c3
 
-In the above configuration, c3 is an optional channel. Failure to write to c3 is
-simply ignored. Since c1 and c2 are not marked optional, failure to write to
-those channels will cause the transaction to fail.
+上面这个例子中，c3配置成了可选的。向c3发送数据如果失败了会被忽略。c1和c2没有配置成可选的，向c1和c2写数据失败会导致事务失败回滚。
 
 
-Multiplexing Channel Selector
+多路复用选择器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 ==================  =====================  =================================================
-Property Name       Default                Description
+属性                 默认值                 解释
 ==================  =====================  =================================================
-selector.type       replicating            The component type name, needs to be ``multiplexing``
-selector.header     flume.selector.header
-selector.default    --
-selector.mapping.*  --
+selector.type       replicating            组件名，这个是： ``multiplexing``
+selector.header     flume.selector.header  想要进行匹配的header属性的名字
+selector.default    --                     指定一个默认的channel。如果没有被规则匹配到，默认会发到这个channel上
+selector.mapping.*  --                     一些匹配规则，具体参考下面的例子
 ==================  =====================  =================================================
 
-Example for agent named a1 and it's source called r1:
+配置范例：
 
 .. code-block:: properties
 
   a1.sources = r1
   a1.channels = c1 c2 c3 c4
   a1.sources.r1.selector.type = multiplexing
-  a1.sources.r1.selector.header = state
-  a1.sources.r1.selector.mapping.CZ = c1
-  a1.sources.r1.selector.mapping.US = c2 c3
-  a1.sources.r1.selector.default = c4
+  a1.sources.r1.selector.header = state        #以每个event的header中的state这个属性的值作为选择channel的依据
+  a1.sources.r1.selector.mapping.CZ = c1       #如果state=CZ，则选择c1这个channel
+  a1.sources.r1.selector.mapping.US = c2 c3    #如果state=US，则选择c2 和 c3 这两个channel
+  a1.sources.r1.selector.default = c4          #默认使用c4这个channel
 
-Custom Channel Selector
+自定义选择器
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-A custom channel selector is your own implementation of the ChannelSelector
-interface. A custom channel selector's class and its dependencies must be
-included in the agent's classpath when starting the Flume agent. The type of
-the custom channel selector is its FQCN.
+自定义选择器就是你可以自己写一个 ``org.apache.flume.ChannelSelector`` 接口的实现类。老规矩，你自己写的实现类以及依赖的jar包在启动时候都必须放入Flume的classpath。
 
 =============  =======  ==============================================
-Property Name  Default  Description
+属性            默认值   解释
 =============  =======  ==============================================
-selector.type  --       The component type name, needs to be your FQCN
+selector.type  --       你写的自定义选择器的全限定类名，比如：org.liyifeng.flume.channel.MyChannelSelector
 =============  =======  ==============================================
 
-Example for agent named a1 and its source called r1:
+配置范例：
 
 .. code-block:: properties
 
@@ -3692,25 +3222,25 @@ Example for agent named a1 and its source called r1:
   a1.channels = c1
   a1.sources.r1.selector.type = org.example.MyChannelSelector
 
-Flume Sink Processors
+接收器组逻辑处理器
 ---------------------
 
-Sink groups allow users to group multiple sinks into one entity.
-Sink processors can be used to provide load balancing capabilities over all
-sinks inside the group or to achieve fail over from one sink to another in
-case of temporal failure.
+你可以把多个sink分成一个组， 这时候Sink processor可以对这同一个组里的几个sink进行负载均衡或者其中一个sink发生故障后将输出event的任务转移到其他的sink上。
 
-Required properties are in **bold**.
+.. hint:: 说的直白一些，这N个sink本来是要将event输出到对应的N个目的地的，通过Sink processor就可以把这N个sink配置成负载均衡或者故障转移的工作方式（暂时还不支持自定义的）。
+          负载均衡就方式是把channel里面的event按照配置的负载机制（比如轮询）分别发送到sink各自对应的目的地；故障转移就是这N个sink同一时间只有一个在工作，其余的作为备用，工作的sink挂掉之后备用的sink顶上。
+
+必需的参数已用 **粗体** 标明。      
 
 ===================  ===========  =================================================================================
-Property Name        Default      Description
+属性                  默认值       解释
 ===================  ===========  =================================================================================
-**sinks**            --           Space-separated list of sinks that are participating in the group
-**processor.type**   ``default``  The component type name, needs to be ``default``, ``failover`` or ``load_balance``
+**sinks**            --           这一组的所有sink名，多个用空格分开
+**processor.type**   ``default``  这个sink组的逻辑处理器类型，可选值 ``default``（默认一对一的）、``failover``（故障转移）、``load_balance``（负载均衡）
 ===================  ===========  =================================================================================
 
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3718,48 +3248,33 @@ Example for agent named a1:
   a1.sinkgroups.g1.sinks = k1 k2
   a1.sinkgroups.g1.processor.type = load_balance
 
-Default Sink Processor
-~~~~~~~~~~~~~~~~~~~~~~
+默认的接收器组逻辑处理器
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Default sink processor accepts only a single sink. User is not forced
-to create processor (sink group) for single sinks. Instead user can follow
-the source - channel - sink pattern that was explained above in this user
-guide.
+默认的组逻辑处理器就是只有一个sink的情况（准确说这根本不算一个组），所以这种情况就没必要配置sink组了。本文档前面的例子都是 source - channel - sink这种一对一，单个sink的。
 
-Failover Sink Processor
-~~~~~~~~~~~~~~~~~~~~~~~
+故障转移的接收器组逻辑处理器
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Failover Sink Processor maintains a prioritized list of sinks, guaranteeing
-that so long as one is available events will be processed (delivered).
+故障转移组逻辑处理器维护了一个发送event失败的sink的列表，保证有一个sink是可用的来发送event。
 
-The failover mechanism works by relegating failed sinks to a pool where
-they are assigned a cool down period, increasing with sequential failures
-before they are retried. Once a sink successfully sends an event, it is
-restored to the live pool. The Sinks have a priority associated with them,
-larger the number, higher the priority. If a Sink fails while sending a Event
-the next Sink with highest priority shall be tried next for sending Events.
-For example, a sink with priority 100 is activated before the Sink with priority
-80. If no priority is specified, thr priority is determined based on the order in which
-the Sinks are specified in configuration.
+故障转移机制的工作原理是将故障sink降级到一个池中，在池中为它们分配冷却期（超时时间），在重试之前随顺序故障而增加。 接收器成功发送事件后，它将恢复到实时池。sink具有与之相关的优先级，数值越大，优先级越高。 
+如果在发送event时接收器发生故障，会继续尝试下一个具有最高优先级的sink。 例如，在优先级为80的sink之前激活优先级为100的sink。如果未指定优先级，则根据配置中的顺序来选取。
 
-To configure, set a sink groups processor to ``failover`` and set
-priorities for all individual sinks. All specified priorities must
-be unique. Furthermore, upper limit to failover time can be set
-(in milliseconds) using ``maxpenalty`` property.
+要使用故障转移选择器，不仅要设置sink组的选择器为failover，还有为每一个sink设置一个唯一的优先级数值。 可以使用 ``maxpenalty`` 属性设置故障转移时间的上限（毫秒）。
 
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 =================================  ===========  ===================================================================================
-Property Name                      Default      Description
+属性                                默认值       解释
 =================================  ===========  ===================================================================================
-**sinks**                          --           Space-separated list of sinks that are participating in the group
-**processor.type**                 ``default``  The component type name, needs to be ``failover``
-**processor.priority.<sinkName>**  --           Priority value.  <sinkName> must be one of the sink instances associated with the current sink group
-                                                A higher priority value Sink gets activated earlier. A larger absolute value indicates higher priority
-processor.maxpenalty               30000        The maximum backoff period for the failed Sink (in millis)
+**sinks**                          --           这一组的所有sink名，多个用空格分开
+**processor.type**                 ``default``  组件名，这个是： ``failover``
+**processor.priority.<sinkName>**  --           组内sink的权重值，<sinkName>必须是当前组关联的sink之一。数值（绝对值）越高越早被激活
+processor.maxpenalty               30000        发生异常的sink最大故障转移时间，单位：毫秒
 =================================  ===========  ===================================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3771,48 +3286,35 @@ Example for agent named a1:
   a1.sinkgroups.g1.processor.maxpenalty = 10000
 
 
-Load balancing Sink Processor
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+负载均衡的接收器组逻辑处理器
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Load balancing sink processor provides the ability to load-balance flow over
-multiple sinks. It maintains an indexed list of active sinks on which the
-load must be distributed. Implementation supports distributing load using
-either via ``round_robin`` or ``random`` selection mechanisms.
-The choice of selection mechanism defaults to ``round_robin`` type,
-but can be overridden via configuration. Custom selection mechanisms are
-supported via custom classes that inherits from ``AbstractSinkSelector``.
+负载均衡Sink 选择器提供了在多个sink上进行负载均衡流量的功能。 它维护一个活动sink列表的索引来实现负载的分配。 默认支持了轮询（``round_robin``）和随机（``random``）两种选择机制分配负载。
+默认是轮询，可以通过配置来更改。也可以从 ``AbstractSinkSelector`` 继承写一个自定义的选择器。
 
-When invoked, this selector picks the next sink using its configured selection
-mechanism and invokes it. For ``round_robin`` and ``random`` In case the selected sink
-fails to deliver the event, the processor picks the next available sink via
-its configured selection mechanism. This implementation does not blacklist
-the failing sink and instead continues to optimistically attempt every
-available sink. If all sinks invocations result in failure, the selector
-propagates the failure to the sink runner.
+工作时，此选择器使用其配置的选择机制选择下一个sink并调用它。 如果所选sink无法正常工作，则处理器通过其配置的选择机制选择下一个可用sink。 此实现不会将失败的接收器列入黑名单，而是继续乐观地尝试每个可用的接收器。
+ 如果所有sink调用都失败了，选择器会将故障抛给sink的运行器。
 
-If ``backoff`` is enabled, the sink processor will blacklist
-sinks that fail, removing them for selection for a given timeout. When the
-timeout ends, if the sink is still unresponsive timeout is increased
-exponentially to avoid potentially getting stuck in long waits on unresponsive
-sinks. With this disabled, in round-robin all the failed sinks load will be
-passed to the next sink in line and thus not evenly balanced
+如果backoff设置为true则启用了退避机制，失败的sink会被放入黑名单，达到一定的超时时间后会自动从黑名单移除。 如从黑名单出来后sink仍然失败，则再次进入黑名单而且超时时间会翻倍，以避免在无响应的sink上浪费过长时间。 
+如果没有启用退避机制，在禁用此功能的情况下，发生sink传输失败后，会将本次负载传给下一个sink继续尝试，因此这种情况下是不均衡的。
 
 
-
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 =============================  ===============  ==========================================================================
-Property Name                  Default          Description
+属性                            默认值          解释
 =============================  ===============  ==========================================================================
-**processor.sinks**            --               Space-separated list of sinks that are participating in the group
-**processor.type**             ``default``      The component type name, needs to be ``load_balance``
-processor.backoff              false            Should failed sinks be backed off exponentially.
-processor.selector             ``round_robin``  Selection mechanism. Must be either ``round_robin``, ``random``
-                                                or FQCN of custom class that inherits from ``AbstractSinkSelector``
-processor.selector.maxTimeOut  30000            Used by backoff selectors to limit exponential backoff (in milliseconds)
+**processor.sinks**            --               这一组的所有sink名，多个用空格分开
+**processor.type**             ``default``      组件名，这个是： ``load_balance``
+processor.backoff              false            失败的sink是否成倍地增加退避它的时间。
+                                                如果设置为false，负载均衡在某一个sink发生异常后，下一次选择sink的时候仍然会将失败的这个sink加入候选队列；
+                                                如果设置为true，某个sink连续发生异常时会成倍地增加它的退避时间，在退避的时间内是无法参与负载均衡竞争的。退避机制只统计1个小时发生的异常，超过1个小时没有发生异常就会重新计算
+processor.selector             ``round_robin``  负载均衡机制，可选值：``round_robin`` （轮询）、 ``random`` （随机选择）、「自定义选择器的全限定类名」：自定义的负载器要继承 ``AbstractSinkSelector``
+processor.selector.maxTimeOut  30000            发生异常的sink最长退避时间（单位：毫秒）
+                                                如果设置了processor.backoff=true，某一个sink发生异常的时候就会触发自动退避它一段时间，这个 ``maxTimeOut`` 就是退避一个sink的最长时间
 =============================  ===============  ==========================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3823,33 +3325,29 @@ Example for agent named a1:
   a1.sinkgroups.g1.processor.selector = random
 
 
-Custom Sink Processor
-~~~~~~~~~~~~~~~~~~~~~
+自定义接收器组逻辑处理器
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Custom sink processors are not supported at the moment.
+目前还不支持自定义接收器组逻辑处理器
 
-Event Serializers
+Event序列化器
 -----------------
 
-The ``file_roll`` sink and the ``hdfs`` sink both support the
-``EventSerializer`` interface. Details of the EventSerializers that ship with
-Flume are provided below.
+`File Roll Sink`_ 和 `HDFS Sink`_ 都使用过 ``EventSerializer`` 接口。下面介绍了随Flume一起提供的Event序列化器的详细信息。
 
-Body Text Serializer
+消息体文本序列化器
 ~~~~~~~~~~~~~~~~~~~~
 
-Alias: ``text``. This interceptor writes the body of the event to an output
-stream without any transformation or modification. The event headers are
-ignored. Configuration options are as follows:
+它的别名是：text。
+这个序列化器会把event消息体里面的内容写到输出流同时不会对内容做任何的修改和转换。event的header部分会被忽略掉，下面是配置参数：
 
 =========================  ================  ===========================================================================
-Property Name              Default           Description
+属性                        默认值            解释
 =========================  ================  ===========================================================================
-appendNewline              true              Whether a newline will be appended to each event at write time. The default
-                                             of true assumes that events do not contain newlines, for legacy reasons.
+appendNewline              true              是否在写入时将换行符附加到每个event。由于遗留原因，默认值为true假定event不包含换行符。
 =========================  ================  ===========================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3860,26 +3358,25 @@ Example for agent named a1:
   a1.sinks.k1.sink.serializer = text
   a1.sinks.k1.sink.serializer.appendNewline = false
 
-"Flume Event" Avro Event Serializer
+Flume Event的Avro序列化器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Alias: ``avro_event``.
+别名： avro_event。
 
-This interceptor serializes Flume events into an Avro container file. The schema used is the same schema used for
-Flume events in the Avro RPC mechanism.
+这个序列化器会把event序列化成Avro的容器文件。使用的模式与 Avro RPC 机制中用于Flume event的模式相同。
 
-This serializer inherits from the ``AbstractAvroEventSerializer`` class.
+这个序列化器继承自 ``AbstractAvroEventSerializer``  类。
 
-Configuration options are as follows:
+配置参数：
 
 ==========================  ================  ===========================================================================
-Property Name               Default           Description
+属性                         默认值            解释
 ==========================  ================  ===========================================================================
-syncIntervalBytes           2048000           Avro sync interval, in approximate bytes.
-compressionCodec            null              Avro compression codec. For supported codecs, see Avro's CodecFactory docs.
+syncIntervalBytes           2048000           Avro同步间隔，大约的字节数。
+compressionCodec            null              指定 Avro压缩编码器。有关受支持的编码器，请参阅Avro的CodecFactory文档。
 ==========================  ================  ===========================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3889,33 +3386,29 @@ Example for agent named a1:
   a1.sinks.k1.serializer = avro_event
   a1.sinks.k1.serializer.compressionCodec = snappy
 
-Avro Event Serializer
+Avro序列化器
 ~~~~~~~~~~~~~~~~~~~~~
 
-Alias: This serializer does not have an alias, and must be specified using the fully-qualified class name class name.
+别名: 没有别名，只能配成全限定类名： ``org.apache.flume.sink.hdfs.AvroEventSerializer$Builder`` 。
 
-This serializes Flume events into an Avro container file like the "Flume Event" Avro Event Serializer, however the
-record schema is configurable. The record schema may be specified either as a Flume configuration property or passed in an event header.
+这个序列化器跟上面的很像，不同的是这个可以配置记录使用的模式。 记录模式可以指定为Flume配置属性，也可以在event头中传递。
 
-To pass the record schema as part of the Flume configuration, use the property ``schemaURL`` as listed below.
+为了能够配置记录的模式，使用下面 ``schemaURL`` 这个参数来配置。
 
-To pass the record schema in an event header, specify either the event header ``flume.avro.schema.literal``
-containing a JSON-format representation of the schema or ``flume.avro.schema.url`` with a URL where
-the schema may be found (``hdfs:/...`` URIs are supported).
+如果要在event头中传递记录模式，请指定包含模式的JSON格式表示的event头 ``flume.avro.schema.literal`` 或包含可以找到模式的URL的 ``flume.avro.schema.url`` （hdfs:// 协议的URI是支持的）。
+这个序列化器继承自 ``AbstractAvroEventSerializer`` 类。
 
-This serializer inherits from the ``AbstractAvroEventSerializer`` class.
-
-Configuration options are as follows:
+配置参数：
 
 ==========================  ================  ===========================================================================
-Property Name               Default           Description
+属性                         默认值            解释
 ==========================  ================  ===========================================================================
-syncIntervalBytes           2048000           Avro sync interval, in approximate bytes.
-compressionCodec            null              Avro compression codec. For supported codecs, see Avro's CodecFactory docs.
-schemaURL                   null              Avro schema URL. Schemas specified in the header ovverride this option.
+syncIntervalBytes           2048000           Avro同步间隔，大约的字节数。
+compressionCodec            null              指定 Avro压缩编码器。有关受支持的编码器，请参阅Avro的CodecFactory文档。
+schemaURL                   null              能够获取Avro模式的URL，如果header里面包含模式信息，优先级会高于这个参数的配置
 ==========================  ================  ===========================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3927,19 +3420,16 @@ Example for agent named a1:
   a1.sinks.k1.serializer.schemaURL = hdfs://namenode/path/to/schema.avsc
 
 
-Flume Interceptors
+拦截器
 ------------------
 
-Flume has the capability to modify/drop events in-flight. This is done with the help of interceptors. Interceptors
-are classes that implement ``org.apache.flume.interceptor.Interceptor`` interface. An interceptor can
-modify or even drop events based on any criteria chosen by the developer of the interceptor. Flume supports
-chaining of interceptors. This is made possible through by specifying the list of interceptor builder class names
-in the configuration. Interceptors are specified as a whitespace separated list in the source configuration.
-The order in which the interceptors are specified is the order in which they are invoked.
-The list of events returned by one interceptor is passed to the next interceptor in the chain. Interceptors
-can modify or drop events. If an interceptor needs to drop events, it just does not return that event in
-the list that it returns. If it is to drop all events, then it simply returns an empty list. Interceptors
-are named components, here is an example of how they are created through configuration:
+Flume支持在运行时对event进行修改或丢弃，可以通过拦截器来实现。Flume里面的拦截器是实现了 ``org.apache.flume.interceptor.Interceptor`` 接口的类。拦截器可以根据开发者的意图随意修改甚至丢弃event，
+Flume也支持链式的拦截器执行方式，在配置文件里面配置多个拦截器就可以了。拦截器的顺序取决于它们被初始化的顺序（实际也就是配置的顺序），event就这样按照顺序经过每一个拦截器，如果想在拦截器里面丢弃event，
+在传递给下一级拦截器的list里面把它移除就行了。如果想丢弃所有的event，返回一个空集合就行了。拦截器也是通过命名配置的组件，下面就是通过配置文件来创建拦截器的例子。
+
+.. hint:: event在拦截器之间流动的时候是以集合的形式，并不是逐个event传输的，这样就能理解上面所说的“从list里面移除”、“返回一个空集合”了。
+
+          做过Java web开发的同学应该很容易理解拦截器，Flume拦截器与spring MVC、struts2等框架里面的拦截器思路十分相似。
 
 .. code-block:: properties
 
@@ -3954,29 +3444,24 @@ are named components, here is an example of how they are created through configu
   a1.sinks.k1.filePrefix = FlumeData.%{CollectorHost}.%Y-%m-%d
   a1.sinks.k1.channel = c1
 
-Note that the interceptor builders are passed to the type config parameter. The interceptors are themselves
-configurable and can be passed configuration values just like they are passed to any other configurable component.
-In the above example, events are passed to the HostInterceptor first and the events returned by the HostInterceptor
-are then passed along to the TimestampInterceptor. You can specify either the fully qualified class name (FQCN)
-or the alias ``timestamp``. If you have multiple collectors writing to the same HDFS path, then you could also use
-the HostInterceptor.
+拦截器构建器配置在type参数上。 拦截器是可配置的，就像其他可配置的组件一样。 在上面的示例中，event首先传递给HostInterceptor，然后HostInterceptor返回的event传递给TimestampInterceptor。 配置拦截器时你可以指定完全限定的类名（FQCN）或别名（timestamp）。 
+如果你有多个收集器写入相同的HDFS路径下，那么HostInterceptor是很有用的。
 
-Timestamp Interceptor
+时间戳添加拦截器
 ~~~~~~~~~~~~~~~~~~~~~
 
-This interceptor inserts into the event headers, the time in millis at which it processes the event. This interceptor
-inserts a header with key ``timestamp`` (or as specified by the ``header`` property) whose value is the relevant timestamp.
-This interceptor can preserve an existing timestamp if it is already present in the configuration.
+这个拦截器会向每个event的header中添加一个时间戳属性进去，key默认是“timestamp ”（也可以通过下面表格中的header来自定义），value就是当前的毫秒值（其实就是用System.currentTimeMillis()方法得到的）。
+如果event已经存在同名的属性，可以选择是否保留原始的值。
 
 ================  =========  ========================================================================
-Property Name     Default    Description
+属性               默认值     解释
 ================  =========  ========================================================================
-**type**          --         The component type name, has to be ``timestamp`` or the FQCN
-header            timestamp  The name of the header in which to place the generated timestamp.
-preserveExisting  false      If the timestamp already exists, should it be preserved - true or false
+**type**          --         组件名，这个是： ``timestamp``
+header            timestamp  向event header中添加时间戳键值对的key
+preserveExisting  false      是否保留event header中已经存在的同名（上面header设置的key，默认是timestamp）时间戳
 ================  =========  ========================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -3987,22 +3472,21 @@ Example for agent named a1:
   a1.sources.r1.interceptors = i1
   a1.sources.r1.interceptors.i1.type = timestamp
 
-Host Interceptor
+Host添加拦截器
 ~~~~~~~~~~~~~~~~
 
-This interceptor inserts the hostname or IP address of the host that this agent is running on. It inserts a header
-with key ``host`` or a configured key whose value is the hostname or IP address of the host, based on configuration.
+这个拦截器会把当前agent的hostname或者IP地址写入到event的header中，key默认是“host”（也可以通过配置自定义key），value可以选择使用hostname或者IP地址。
 
 ================  =======  ========================================================================
-Property Name     Default  Description
+属性               默认值   解释
 ================  =======  ========================================================================
-**type**          --       The component type name, has to be ``host``
-preserveExisting  false    If the host header already exists, should it be preserved - true or false
-useIP             true     Use the IP Address if true, else use hostname.
-hostHeader        host     The header key to be used.
+**type**          --       组件名，这个是： ``host``
+preserveExisting  false    如果header中已经存在同名的属性是否保留
+useIP             true     true：使用IP地址；false：使用hostname
+hostHeader        host     向event header中添加host键值对的key
 ================  =======  ========================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -4011,24 +3495,23 @@ Example for agent named a1:
   a1.sources.r1.interceptors = i1
   a1.sources.r1.interceptors.i1.type = host
 
-Static Interceptor
+静态属性写入拦截器
 ~~~~~~~~~~~~~~~~~~
 
-Static interceptor allows user to append a static header with static value to all events.
+静态拦截器可以向event header中写入一个固定的键值对属性。
 
-The current implementation does not allow specifying multiple headers at one time. Instead user might chain
-multiple static interceptors each defining one static header.
+这个拦截器目前不支持写入多个属性，但是你可以通过配置多个静态属性写入拦截器来实现。
 
 ================  =======  ========================================================================
-Property Name     Default  Description
+属性               默认值   解释
 ================  =======  ========================================================================
-**type**          --       The component type name, has to be ``static``
-preserveExisting  true     If configured header already exists, should it be preserved - true or false
-key               key      Name of header that should be created
-value             value    Static value that should be created
+**type**          --       组件名，这个是： ``static``
+preserveExisting  true     如果header中已经存在同名的属性是否保留
+key               key      写入header的key
+value             value    写入header的值
 ================  =======  ========================================================================
 
-Example for agent named a1:
+配置范例：   
 
 .. code-block:: properties
 
@@ -4042,60 +3525,59 @@ Example for agent named a1:
   a1.sources.r1.interceptors.i1.value = NEW_YORK
 
 
-Remove Header Interceptor
+删除属性拦截器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This interceptor manipulates Flume event headers, by removing one or many headers. It can remove a statically defined header, headers based on a regular expression or headers in a list. If none of these is defined, or if no header matches the criteria, the Flume events are not modified.
+这个拦截器可以删除event header里面的属性，可以是一个或多个。支持删除固定的header、固定分隔符分隔的多个header列表，也支持用正则表达式匹配的方式匹配删除。如果这三种方式都没有配置，那么这个拦截器不会对event做任何修改处理。
 
-Note that if only one header needs to be removed, specifying it by name provides performance benefits over the other 2 methods.
+如果只有一个header要删除，尽量使用withName方式，它要比另外两种在性能上要好一些。
 
 =====================  ===========  ===============================================================
-Property Name          Default      Description
+属性                    默认值       解释
 =====================  ===========  ===============================================================
-**type**               --           The component type name has to be ``remove_header``
-withName               --           Name of the header to remove
-fromList               --           List of headers to remove, separated with the separator specified by ``fromListSeparator``
-fromListSeparator      \\s*,\\s*    Regular expression used to separate multiple header names in the list specified by ``fromList``. Default is a comma surrounded by any number of whitespace characters
-matching               --           All the headers which names match this regular expression are removed
+**type**               --           组件名，这个是：``remove_header``
+withName               --           要删除的header属性名
+fromList               --           要删除的header名列表，用下面 ``fromListSeparator`` 指定的分隔符分开
+fromListSeparator      \\s*,\\s*    用来分隔 ``fromList`` 里面设置的header名的正则表达式，默认是由任意多个空白字符包围的逗号分隔
+matching               --           要删除的header名的正则表达式，符合正则的将被全部删除
 =====================  ===========  ===============================================================
 
 
-UUID Interceptor
+添加唯一ID拦截器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This interceptor sets a universally unique identifier on all events that are intercepted. An example UUID is ``b5755073-77a9-43c1-8fad-b7a586fc1b97``, which represents a 128-bit value.
+此拦截器在所有截获的event上设置通用唯一标识符。 比如UUID可以是b5755073-77a9-43c1-8fad-b7a586fc1b97，它是一个128-bit的值。
 
-Consider using UUIDInterceptor to automatically assign a UUID to an event if no application level unique key for the event is available. It can be important to assign UUIDs to events as soon as they enter the Flume network; that is, in the first Flume Source of the flow. This enables subsequent deduplication of events in the face of replication and redelivery in a Flume network that is designed for high availability and high performance. If an application level key is available, this is preferable over an auto-generated UUID because it enables subsequent updates and deletes of event in data stores using said well known application level key.
+event如果没有可用的应用级唯一ID，就可以考虑使用添加唯一ID拦截器自动为event分配UUID。 event数据只要进入Flume网络中就给其分配一个UUID是非常重要的，event进入Flume网络的第一个节点通常就是Flume的第一个source。 
+这样可以在Flume网络中进行复制和重新传输以及event的后续重复数据删除可以实现高可用性和高性能。 如果在应用层有唯一ID的话要比这种自动生成UUID要好一些，因为应用层分配的ID能方便我们在后续的数据存储中心对event进行集中的更新和删除等操作。
 
 ================  =======  ========================================================================
-Property Name     Default  Description
+属性               默认值   解释
 ================  =======  ========================================================================
-**type**          --       The component type name has to be ``org.apache.flume.sink.solr.morphline.UUIDInterceptor$Builder``
-headerName        id       The name of the Flume header to modify
-preserveExisting  true     If the UUID header already exists, should it be preserved - true or false
-prefix            ""       The prefix string constant to prepend to each generated UUID
+**type**          --       组件名，这个是：``org.apache.flume.sink.solr.morphline.UUIDInterceptor$Builder``
+headerName        id       将要添加或者修改的id名称
+preserveExisting  true     如果header中已经存在同名的属性是否保留
+prefix            ""       UUID值的固定前缀（每个生成的uuid会在前面拼上这个固定前缀）
 ================  =======  ========================================================================
 
-Morphline Interceptor
+Morphline 实时清洗拦截器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+此拦截器通过 `morphline配置文件 <http://cloudera.github.io/cdk/docs/current/cdk-morphlines/index.html>`_ 过滤event，配置文件定义了一系列转换命令，用于将记录从一个命令传递到另一个命令。 例如，morphline可以忽略某些event或通过基于正则表达式的模式匹配来更改或插入某些event header，
+或者它可以通过Apache Tika在截获的event上自动检测和设置MIME类型。 例如，这种数据包嗅探可用于Flume拓扑中基于内容的动态路由。 Morphline 实时清洗拦截器还可以帮助实现到多个Apache Solr集合的动态路由（例如，用于multi-tenancy）。
 
-This interceptor filters the events through a `morphline configuration file <http://cloudera.github.io/cdk/docs/current/cdk-morphlines/index.html>`_ that defines a chain of transformation commands that pipe records from one command to another.
-For example the morphline can ignore certain events or alter or insert certain event headers via regular expression based pattern matching, or it can auto-detect and set a MIME type via Apache Tika on events that are intercepted. For example, this kind of packet sniffing can be used for content based dynamic routing in a Flume topology.
-MorphlineInterceptor can also help to implement dynamic routing to multiple Apache Solr collections (e.g. for multi-tenancy).
+目前存在一个限制，这个拦截器不能输入一个event然后产生多个event出来，它不适用于重型的ETL处理，如果有需要，请考虑将ETL操作从Flume source转移到Flume sink中，比如：MorphlineSolrSink。
 
-Currently, there is a restriction in that the morphline of an interceptor must not generate more than one output record for each input event. This interceptor is not intended for heavy duty ETL processing - if you need this consider moving ETL processing from the Flume Source to a Flume Sink, e.g. to a MorphlineSolrSink.
-
-Required properties are in **bold**.
+必需的参数已用 **粗体** 标明。      
 
 =================  =======  ========================================================================
-Property Name      Default  Description
+属性                默认值   解释
 =================  =======  ========================================================================
-**type**           --       The component type name has to be ``org.apache.flume.sink.solr.morphline.MorphlineInterceptor$Builder``
-**morphlineFile**  --       The relative or absolute path on the local file system to the morphline configuration file. Example: ``/etc/flume-ng/conf/morphline.conf``
-morphlineId        null     Optional name used to identify a morphline if there are multiple morphlines in a morphline config file
+**type**           --       组件名，这个是： ``org.apache.flume.sink.solr.morphline.MorphlineInterceptor$Builder``
+**morphlineFile**  --       morphline配置文件在本地文件系统的绝对目录。比如：/etc/flume-ng/conf/morphline.conf
+morphlineId        null     如果在morphline 配置文件里有多个morphline ，可以配置这个名字来加以区分
 =================  =======  ========================================================================
 
-Sample flume.conf file:
+配置范例：
 
 .. code-block:: properties
 
@@ -4104,23 +3586,21 @@ Sample flume.conf file:
   a1.sources.avroSrc.interceptors.morphlineinterceptor.morphlineFile = /etc/flume-ng/conf/morphline.conf
   a1.sources.avroSrc.interceptors.morphlineinterceptor.morphlineId = morphline1
 
-Search and Replace Interceptor
+查找-替换拦截器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This interceptor provides simple string-based search-and-replace functionality
-based on Java regular expressions. Backtracking / group capture is also available.
-This interceptor uses the same rules as in the Java Matcher.replaceAll() method.
+此拦截器基于Java正则表达式提供对event消息体简单的基于字符串的搜索和替换功能。 还可以进行Backtracking / group。 此拦截器使用与Java Matcher.replaceAll()方法中的规则相同。
 
 ================  =======  ========================================================================
-Property Name     Default  Description
+属性               默认值   解释
 ================  =======  ========================================================================
-**type**          --       The component type name has to be ``search_replace``
-searchPattern     --       The pattern to search for and replace.
-replaceString     --       The replacement string.
-charset           UTF-8    The charset of the event body. Assumed by default to be UTF-8.
+**type**          --       组件名，这个是： ``search_replace``
+searchPattern     --       被替换的字符串的正则表达式
+replaceString     --       上面正则找到的内容会使用这个字段进行替换
+charset           UTF-8    event body的字符编码，默认是：UTF-8
 ================  =======  ========================================================================
 
-Example configuration:
+配置范例：
 
 .. code-block:: properties
 
@@ -4131,7 +3611,7 @@ Example configuration:
   a1.sources.avroSrc.interceptors.search-replace.searchPattern = ^[A-Za-z0-9_]+
   a1.sources.avroSrc.interceptors.search-replace.replaceString =
 
-Another example:
+再来一个例子：
 
 .. code-block:: properties
 
@@ -4143,54 +3623,48 @@ Another example:
   a1.sources.avroSrc.interceptors.search-replace.replaceString = The hungry $2 ate the careless $1
 
 
-Regex Filtering Interceptor
+正则过滤拦截器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This interceptor filters events selectively by interpreting the event body as text and matching the text against a configured regular expression.
-The supplied regular expression can be used to include events or exclude events.
+这个拦截器会把event的body当做字符串来处理，并用配置的正则表达式来匹配。可以配置指定被匹配到的event丢弃还是没被匹配到的event丢弃。
 
 ================  =======  ========================================================================
-Property Name     Default  Description
+属性               默认值   解释
 ================  =======  ========================================================================
-**type**          --       The component type name has to be ``regex_filter``
-regex             ".*"     Regular expression for matching against events
-excludeEvents     false    If true, regex determines events to exclude, otherwise regex determines
-                           events to include.
+**type**          --       组件名，这个是： ``regex_filter``
+regex             ".*"     用于匹配event内容的正则表达式
+excludeEvents     false    如果为true，被正则匹配到的event会被丢弃；如果为false，不被正则匹配到的event会被丢弃
 ================  =======  ========================================================================
 
-Regex Extractor Interceptor
+正则提取拦截器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This interceptor extracts regex match groups using a specified regular expression and appends the match groups as headers on the event.
-It also supports pluggable serializers for formatting the match groups before adding them as event headers.
+这个拦截器会使用正则表达式从event内容体中获取一组值并与配置的key组成n个键值对，然后放入event的header中，event的body不会有任何更改。它还支持插件化的方式配置序列化器来格式化从event body中提取到的值。
 
 ================================ ========== =================================================================================================
-Property Name                    Default                        Description
+属性                              默认值     解释
 ================================ ========== =================================================================================================
-**type**                         --         The component type name has to be ``regex_extractor``
-**regex**                        --         Regular expression for matching against events
-**serializers**                  --         Space-separated list of serializers for mapping matches to header names and serializing their
-                                            values. (See example below)
-                                            Flume provides built-in support for the following serializers:
+**type**                         --         组件名，这个是： ``regex_extractor``
+**regex**                        --         用于匹配event内容的正则表达式
+**serializers**                  --         被正则匹配到的一组值被逐个添加到header中所使用的key的名字列表，多个用空格分隔
+                                            Flume提供了两个内置的序列化器，分别是：
                                             ``org.apache.flume.interceptor.RegexExtractorInterceptorPassThroughSerializer``
                                             ``org.apache.flume.interceptor.RegexExtractorInterceptorMillisSerializer``
-serializers.<s1>.type            default    Must be ``default`` (org.apache.flume.interceptor.RegexExtractorInterceptorPassThroughSerializer),
-                                            ``org.apache.flume.interceptor.RegexExtractorInterceptorMillisSerializer``,
-                                            or the FQCN of a custom class that implements ``org.apache.flume.interceptor.RegexExtractorInterceptorSerializer``
-serializers.<s1>.\ **name**      --
-serializers.*                    --         Serializer-specific properties
+serializers.<s1>.type            default    可选值：
+                                            1：``default`` (default其实就是这个：``org.apache.flume.interceptor.RegexExtractorInterceptorPassThroughSerializer``)；
+                                            2：``org.apache.flume.interceptor.RegexExtractorInterceptorMillisSerializer``；
+                                            3：自定义序列化器的全限定类名（自定义序列化器需要实现 ``org.apache.flume.interceptor.RegexExtractorInterceptorSerializer`` 接口）
+serializers.<s1>.\ **name**      --         指定即将放入header的key，也就是最终写入到header中键值对的key
+serializers.*                    --         序列化器的一些属性
 ================================ ========== =================================================================================================
 
-The serializers are used to map the matches to a header name and a formatted header value; by default, you only need to specify
-the header name and the default ``org.apache.flume.interceptor.RegexExtractorInterceptorPassThroughSerializer`` will be used.
-This serializer simply maps the matches to the specified header name and passes the value through as it was extracted by the regex.
-You can plug custom serializer implementations into the extractor using the fully qualified class name (FQCN) to format the matches
-in anyway you like.
+序列化器是用来格式化匹配到的那些字符串后再与配置的key组装成键值对放入header，默认情况下你只需要制定这些key就行了，flume默认会使用 ``org.apache.flume.interceptor.RegexExtractorInterceptorPassThroughSerializer`` 
+这个序列化器，这个序列化器只是简单地将提取到的字符串与配置的key映射组装起来。当然也可以配置一个自定义的序列化器，以任意你需要的格式来格式化这些值。
 
-Example 1:
+例子 1：
 ~~~~~~~~~~
 
-If the Flume event body contained ``1:2:3.4foobar5`` and the following configuration was used
+假设event body中包含这个字符串“1:2:3.4foobar5”
 
 .. code-block:: properties
 
@@ -4200,12 +3674,32 @@ If the Flume event body contained ``1:2:3.4foobar5`` and the following configura
   a1.sources.r1.interceptors.i1.serializers.s2.name = two
   a1.sources.r1.interceptors.i1.serializers.s3.name = three
 
-The extracted event will contain the same body but the following headers will have been added ``one=>1, two=>2, three=>3``
+经过这个拦截器后，此时event：
 
-Example 2:
+.. code-block:: properties
+
+  body: 不变 header增加3个属性: one=>1, two=>2, three=3
+
+将上面的例子变动一下
+
+.. code-block:: properties
+
+  a1.sources.r1.interceptors.i1.regex = (\\d):(\\d):(\\d)
+  a1.sources.r1.interceptors.i1.serializers = s1 s2 
+  a1.sources.r1.interceptors.i1.serializers.s1.name = one
+  a1.sources.r1.interceptors.i1.serializers.s2.name = two
+
+执行这个拦截器后，此时event：
+
+.. code-block:: properties
+
+  body: 不变 header增加3个属性: one=>1, two=>2
+
+
+例子 2：
 ~~~~~~~~~~
 
-If the Flume event body contained ``2012-10-18 18:47:57,614 some log line`` and the following configuration was used
+假设event body中的某些行包含2012-10-18 18:47:57,614格式的时间戳，运行下面的拦截器
 
 .. code-block:: properties
 
@@ -4215,62 +3709,52 @@ If the Flume event body contained ``2012-10-18 18:47:57,614 some log line`` and 
   a1.sources.r1.interceptors.i1.serializers.s1.name = timestamp
   a1.sources.r1.interceptors.i1.serializers.s1.pattern = yyyy-MM-dd HH:mm
 
-the extracted event will contain the same body but the following headers will have been added ``timestamp=>1350611220000``
+运行拦截器后，此时event：
 
-Flume Properties
+.. code-block:: properties
+
+  body不变，header中增加一个新属性：timestamp=>1350611220000
+
+自动重载配置
 ----------------
 
 =========================  =======  ====================================================================
-Property Name              Default  Description
+属性                        默认值   解释
 =========================  =======  ====================================================================
-flume.called.from.service  --       If this property is specified then the Flume agent will continue
-                                    polling for the config file even if the config file is not found
-                                    at the expected location. Otherwise, the Flume agent will terminate
-                                    if the config doesn't exist at the expected location. No property
-                                    value is needed when setting this property (eg, just specifying
-                                    -Dflume.called.from.service is enough)
+flume.called.from.service  --       如果设定了这个参数，agent启动时会轮询地寻找配置文件，即使在预期的位置没有找到配置文件。
+                                    如果没有设定这个参数，如果flume agent在预期的位置没有找到配置文件的话会立即停止。设定这个参数使用的时候无需设定具体的值，
+                                    像这样：``-Dflume.called.from.service`` 就可以了。
 =========================  =======  ====================================================================
 
 Property: flume.called.from.service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Flume periodically polls, every 30 seconds, for changes to the specified
-config file. A Flume agent loads a new configuration from the config file if
-either an existing file is polled for the first time, or if an existing
-file's modification date has changed since the last time it was polled.
-Renaming or moving a file does not change its modification time. When a
-Flume agent polls a non-existent file then one of two things happens: 1.
-When the agent polls a non-existent config file for the first time, then the
-agent behaves according to the flume.called.from.service property. If the
-property is set, then the agent will continue polling (always at the same
-period -- every 30 seconds). If the property is not set, then the agent
-immediately terminates. ...OR... 2. When the agent polls a non-existent
-config file and this is not the first time the file is polled, then the
-agent makes no config changes for this polling period. The agent continues
-polling rather than terminating.
+Flume每隔30秒轮询扫描一次指定配置文件的变动。如果首次扫描现有文件或者上次轮询时的文件「修改时间」发生了变动，Flume agent就会重新加载新的配置内容。重命名或者移动文件不会更改配置文件的「修改时间」。
+当Flume轮询一个不存在的配置文件时，有以下两种情况：
 
-Log4J Appender
-==============
+#.当第一次轮询就不存在配置文件时，会根据flume.called.from.service的属性执行操作。如果设定了这个属性，则继续轮询（固定的时间间隔，30秒轮询一次）；如果未设置这个属性，则agent会立即终止。
+#.当轮询到一个不存在的配置文件并且不是第一次轮询（也就是说之前轮询的时候有配置文件，但是现在中途没有了），agent会继续轮询不会停止运行。
 
-Appends Log4j events to a flume agent's avro source. A client using this
-appender must have the flume-ng-sdk in the classpath (eg,
-flume-ng-sdk-1.8.0.jar).
-Required properties are in **bold**.
+
+Log4J Appender直接写到flume
+=================================
+
+使用log4j Appender输出日志到Flume agent 的avro source上。使用的时候log4j客户端必须要在classpath引入flume-ng-sdk（比如：flume-ng-sdk-1.8.0.jar）.
+必需的参数已用 **粗体** 标明。
+
+.. hint:: 说白了就是用log4j直接将日志内容发送到flume，简化了先写入到日志，再由flume收集的过程。从配置参数可以看得出使用的是avro协议。
 
 =====================  =======  ==================================================================================
-Property Name          Default  Description
+属性                    默认值   解释
 =====================  =======  ==================================================================================
-**Hostname**           --       The hostname on which a remote Flume agent is running with an
-                                avro source.
-**Port**               --       The port at which the remote Flume agent's avro source is
-                                listening.
-UnsafeMode             false    If true, the appender will not throw exceptions on failure to
-                                send the events.
-AvroReflectionEnabled  false    Use Avro Reflection to serialize Log4j events. (Do not use when users log strings)
-AvroSchemaUrl          --       A URL from which the Avro schema can be retrieved.
+**Hostname**           --       远程运行着avro source的Flume agent的hostname
+**Port**               --       上面这个Flume agent 的avro source监听的端口
+UnsafeMode             false    如果为true，log4j的appender在发送event失败时不会抛出异常
+AvroReflectionEnabled  false    是否使用Avro反射来序列化log4j的event（当log是字符串时不要开启）
+AvroSchemaUrl          --       一个能检索到Avro结构的url
 =====================  =======  ==================================================================================
 
-Sample log4j.properties file:
+log4j.properties 文件配置范例：
 
 .. code-block:: properties
 
@@ -4280,24 +3764,17 @@ Sample log4j.properties file:
   log4j.appender.flume.Port = 41414
   log4j.appender.flume.UnsafeMode = true
 
-  # configure a class's logger to output to the flume appender
+  # 指定一个类的logger输出到flume appender上
   log4j.logger.org.example.MyClass = DEBUG,flume
   #...
 
-By default each event is converted to a string by calling ``toString()``,
-or by using the Log4j layout, if specified.
+默认情况下，每一个event都会通过调用 toString()方法或者log4j的layout（如果配置了的话）转换成一个字符串。
 
-If the event is an instance of
-``org.apache.avro.generic.GenericRecord``, ``org.apache.avro.specific.SpecificRecord``,
-or if the property ``AvroReflectionEnabled`` is set to ``true`` then the event will be
-serialized using Avro serialization.
+如果event是 ``org.apache.avro.generic.GenericRecord`` 或 ``org.apache.avro.specific.SpecificRecord`` 的一个实例，又或者 ``AvroReflectionEnabled`` 属性设置为true，event会使用Avro序列化器来序列化。
 
-Serializing every event with its Avro schema is inefficient, so it is good practice to
-provide a schema URL from which the schema can be retrieved by the downstream sink,
-typically the HDFS sink. If ``AvroSchemaUrl`` is not specified,
-then the schema will be included as a Flume header.
+使用Avro序列化每个event效率很低，因此最好提供一个avro schema的URL，可以被 downstream sink（通常是HDFS sink）从该URL检索schema。 如果未指定 ``AvroSchemaUrl``，则schema将作为Flume header包含在内。
 
-Sample log4j.properties file configured to use Avro serialization:
+使用Avro序列化event的log4j.properties配置范例：
 
 .. code-block:: properties
 
@@ -4308,40 +3785,33 @@ Sample log4j.properties file configured to use Avro serialization:
   log4j.appender.flume.AvroReflectionEnabled = true
   log4j.appender.flume.AvroSchemaUrl = hdfs://namenode/path/to/schema.avsc
 
-  # configure a class's logger to output to the flume appender
+  # 指定一个类的logger输出到flume appender上
   log4j.logger.org.example.MyClass = DEBUG,flume
   #...
 
 
-Load Balancing Log4J Appender
+负载均衡的Log4J Appender
 =============================
 
-Appends Log4j events to a list of flume agent's avro source. A client using this
-appender must have the flume-ng-sdk in the classpath (eg,
-flume-ng-sdk-1.8.0.jar). This appender supports a round-robin and random
-scheme for performing the load balancing. It also supports a configurable backoff
-timeout so that down agents are removed temporarily from the set of hosts
-Required properties are in **bold**.
+使用log4j Appender发送event到多个运行着avro source的flume agent上。使用的时候log4j客户端必须要在classpath引入flume-ng-sdk（比如：flume-ng-sdk-1.8.0.jar）。
+这个appender支持轮询和随机的负载方式，它也支持配置一个规避时间，以便临时移除那些挂掉的flume agent。
+必需的参数已用 **粗体** 标明。      
+
+.. hint:: 这是上面Log4j Appender的升级版，支持多个flume实例的负载均衡发送，配置也很类似，没什么可说的了。
 
 =====================  ===========  ==============================================================
-Property Name          Default      Description
+属性                    默认值       解释
 =====================  ===========  ==============================================================
-**Hosts**              --           A space-separated list of host:port at which Flume (through
-                                    an AvroSource) is listening for events
-Selector               ROUND_ROBIN  Selection mechanism. Must be either ROUND_ROBIN,
-                                    RANDOM or custom FQDN to class that inherits from
-                                    LoadBalancingSelector.
-MaxBackoff             --           A long value representing the maximum amount of time in
-                                    milliseconds the Load balancing client will backoff from a
-                                    node that has failed to consume an event. Defaults to no backoff
-UnsafeMode             false        If true, the appender will not throw exceptions on failure to
-                                    send the events.
-AvroReflectionEnabled  false        Use Avro Reflection to serialize Log4j events.
-AvroSchemaUrl          --           A URL from which the Avro schema can be retrieved.
+**Hosts**              --           host:port格式的Flume agent（运行着avro source）地址列表，多个用空格分隔
+Selector               ROUND_ROBIN  appender向flume agent发送event的选择机制。可选值有：``ROUND_ROBIN``（轮询）、``RANDOM``（随机） 或者自定义选择器的全限定类名（自定义选择器必须继承自 ``LoadBalancingSelector``）
+MaxBackoff             --           一个long型数值，表示负载平衡客户端将无法发送event的节点退避的最长时间（以毫秒为单位）。 默认不启用规避机制
+UnsafeMode             false        如果为true，log4j的appender在发送event失败时不会抛出异常
+AvroReflectionEnabled  false        是否使用Avro反射来序列化log4j的event（当log是字符串时不要开启）
+AvroSchemaUrl          --           一个能检索到Avro结构的url
 =====================  ===========  ==============================================================
 
 
-Sample log4j.properties file configured using defaults:
+log4j.properties 文件配置范例：
 
 .. code-block:: properties
 
@@ -4353,7 +3823,7 @@ Sample log4j.properties file configured using defaults:
   log4j.logger.org.example.MyClass = DEBUG,flume
   #...
 
-Sample log4j.properties file configured using RANDOM load balancing:
+使用随机（``RANDOM`` ）负载均衡方式的log4j.properties 文件配置范例：
 
 .. code-block:: properties
 
@@ -4366,7 +3836,7 @@ Sample log4j.properties file configured using RANDOM load balancing:
   log4j.logger.org.example.MyClass = DEBUG,flume
   #...
 
-Sample log4j.properties file configured using backoff:
+log4j使用「失败退避」方式的log4j.properties配置范例：
 
 .. code-block:: properties
 
@@ -4374,66 +3844,61 @@ Sample log4j.properties file configured using backoff:
   log4j.appender.out2 = org.apache.flume.clients.log4jappender.LoadBalancingLog4jAppender
   log4j.appender.out2.Hosts = localhost:25430 localhost:25431 localhost:25432
   log4j.appender.out2.Selector = ROUND_ROBIN
-  log4j.appender.out2.MaxBackoff = 30000
+  log4j.appender.out2.MaxBackoff = 30000   #最大的规避时长是30秒
 
   # configure a class's logger to output to the flume appender
   log4j.logger.org.example.MyClass = DEBUG,flume
   #...
 
-Security
+.. hint:: 这种规退机制在其他组件中有过多次应用，比如：`Spooling Directory Source`_ 中的 ``maxBackoff`` 属性的功能是一样的。
+
+安全
 ========
 
-The HDFS sink, HBase sink, Thrift source, Thrift sink and Kite Dataset sink all support
-Kerberos authentication. Please refer to the corresponding sections for
-configuring the Kerberos-related options.
+HDFS sink、HBase sink、Thrift source、Thrift sink 和Kite Dataset sink 都支持Kerberos 认证。 请参考对应组件的文档来配置Kerberos认证的选项。
 
-Flume agent will authenticate to the kerberos KDC as a single principal, which will be
-used by different components that require kerberos authentication. The principal and
-keytab configured for Thrift source, Thrift sink, HDFS sink, HBase sink and DataSet sink
-should be the same, otherwise the component will fail to start.
+Flume agent 会作为一个主体向kerberos KDC认证，给需要kerberos认证的所有组件使用。Thrift source、Thrift sink、 HDFS sink、HBase sink 和 DataSet sink 配置的主体和keytab 文件应该是相同的，否则组件无法启动。
 
-Monitoring
+监控
 ==========
 
-Monitoring in Flume is still a work in progress. Changes can happen very often.
-Several Flume components report metrics to the JMX platform MBean server. These
-metrics can be queried using Jconsole.
+Flume的监控系统的完善仍在进行中，变化可能会比较频繁，有几个Flume组件会向JMX平台MBean服务器报告运行指标。 可以使用Jconsole查询这些指标数据。
 
 JMX Reporting
 -------------
 
-JMX Reporting can be enabled by specifying JMX parameters in the JAVA_OPTS environment variable using
-flume-env.sh, like
+MX监控可以通过在flume-env.sh脚本中修改JAVA_OPTS环境变量中的JMX参数来开启，比如这样：
+
+.. code-block:: none
 
   export JAVA_OPTS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=5445 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false"
 
-NOTE: The sample above disables the security. To enable Security, please refer http://docs.oracle.com/javase/6/docs/technotes/guides/management/agent.html
+.. warning:: 注意：上面的JVM启动参数例子里面没有开启安全验证，如果要开启请参考：http://docs.oracle.com/javase/6/docs/technotes/guides/management/agent.html
 
 Ganglia Reporting
 -----------------
-Flume can also report these metrics to
-Ganglia 3 or Ganglia 3.1 metanodes. To report metrics to Ganglia, a flume agent
-must be started with this support. The Flume agent has to be started by passing
-in the following parameters as system properties prefixed by ``flume.monitoring.``,
-and can be specified in the flume-env.sh:
+Flume也可以向Ganglia 3或Ganglia 3.1报告运行指标数据。想要开启这个功能，必须在agent启动时候指定。Flume agent在启动时候必须制定下面这些参数并在参数前面加上前缀「flume.monitoring.」来配置，也可以在flume-env.sh中设定这些参数。
 
 =======================  =======  =====================================================================================
-Property Name            Default  Description
+属性                      默认值   解释
 =======================  =======  =====================================================================================
-**type**                 --       The component type name, has to be ``ganglia``
-**hosts**                --       Comma-separated list of ``hostname:port`` of Ganglia servers
-pollFrequency            60       Time, in seconds, between consecutive reporting to Ganglia server
-isGanglia3               false    Ganglia server version is 3. By default, Flume sends in Ganglia 3.1 format
+**type**                 --       组件名，这个是： ``ganglia``
+**hosts**                --       hostname:port 格式的 Ganglia 服务列表，多个用逗号分隔
+pollFrequency            60       向Ganglia服务器报告数据的时间间隔，单位是秒
+isGanglia3               false    设置为true后Ganglia的版本兼容为Ganglia3，默认情况下Flume发送的数据是Ganglia3.1格式的
 =======================  =======  =====================================================================================
 
-We can start Flume with Ganglia support as follows::
+我们可以在启动时这样开启Ganglia支持：
+
+.. code-block:: none
 
   $ bin/flume-ng agent --conf-file example.conf --name a1 -Dflume.monitoring.type=ganglia -Dflume.monitoring.hosts=com.example:1234,com.example2:5455
 
+.. hint:: 看上面这个启动脚本，其中 ``-Dflume.monitoring.type=ganglia`` 以及后面的参数都是按照上面描述的规则配置的，就是「固定的前缀+参数=参数值」的形式。
+
 JSON Reporting
 --------------
-Flume can also report metrics in a JSON format. To enable reporting in JSON format, Flume hosts
-a Web server on a configurable port. Flume reports metrics in the following JSON format:
+Flume也支持以JSON格式报告运行指标。为了对外提供这些报告数据，Flume会在某个端口（可自定义）上运行一个web服务来提供这些数据，以下面这种格式：
 
 .. code-block:: java
 
@@ -4442,7 +3907,7 @@ a Web server on a configurable port. Flume reports metrics in the following JSON
   "typeName2.componentName2" : {"metric3" : "metricValue3", "metric4" : "metricValue4"}
   }
 
-Here is an example:
+下面是一个具体的报告例子：
 
 .. code-block:: java
 
@@ -4468,44 +3933,39 @@ Here is an example:
   }
 
 =======================  =======  =====================================================================================
-Property Name            Default  Description
+属性                      默认值   解释
 =======================  =======  =====================================================================================
-**type**                 --       The component type name, has to be ``http``
-port                     41414    The port to start the server on.
+**type**                 --       组件名，这个是： ``http``
+port                     41414    查看json报告的端口
 =======================  =======  =====================================================================================
 
-We can start Flume with JSON Reporting support as follows::
+启用JSON报告的启动脚本示例：
+
+.. code-block:: none
 
   $ bin/flume-ng agent --conf-file example.conf --name a1 -Dflume.monitoring.type=http -Dflume.monitoring.port=34545
 
-Metrics will then be available at **http://<hostname>:<port>/metrics** webpage.
-Custom components can report metrics as mentioned in the Ganglia section above.
+启动后可以通过这个地址 http://<hostname>:<port>/metrics 来查看报告，自定义组件可以报告上面Ganglia部分中提到的指标数据。
 
 Custom Reporting
 ----------------
-It is possible to report metrics to other systems by writing servers that do
-the reporting. Any reporting class has to implement the interface,
-``org.apache.flume.instrumentation.MonitorService``. Such a class can be used
-the same way the GangliaServer is used for reporting. They can poll the platform
-mbean server to poll the mbeans for metrics. For example, if an HTTP
-monitoring service called ``HTTPReporting`` can be used as follows::
+可以通过编写自己的执行报告服务向其他系统报告运行指标。 报告类必须实现org.apache.flume.instrumentation.MonitorService 接口。 
+自定义的报告类与GangliaServer的报告用法相同。 他们可以轮询请求mbean服务器获取mbeans的运行指标。 例如，假设一个命名为为HTTPReporting的HTTP监视服务，启动脚本如下所示：
+
+.. code-block:: none
 
   $ bin/flume-ng agent --conf-file example.conf --name a1 -Dflume.monitoring.type=com.example.reporting.HTTPReporting -Dflume.monitoring.node=com.example:332
 
 =======================  =======  ========================================
-Property Name            Default  Description
+属性                      默认值   解释
 =======================  =======  ========================================
-**type**                 --       The component type name, has to be FQCN
+**type**                 --       自定义报告组件的全限定类名
 =======================  =======  ========================================
 
 Reporting metrics from custom components
 ----------------------------------------
-Any custom flume components should inherit from the
-``org.apache.flume.instrumentation.MonitoredCounterGroup`` class. The class
-should then provide getter methods for each of the metrics it exposes. See
-the code below. The MonitoredCounterGroup expects a list of attributes whose
-metrics are exposed by this class. As of now, this class only supports exposing
-metrics as long values.
+自定义flume监控组件必须应继承自 ``org.apache.flume.instrumentation.MonitoredCounterGroup`` 类。 然后，
+该类应为其公开的每个度量指标提供getter方法。 请参阅下面的代码。 MonitoredCounterGroup 需要一个此类要提供的监控属性列表。 目前仅支持将监控指标值设置为long型。
 
 .. code-block:: java
 
@@ -4562,57 +4022,58 @@ metrics as long values.
 Tools
 =====
 
-File Channel Integrity Tool
+文件channel验证工具
 ---------------------------
 
-File Channel Integrity tool verifies the integrity of individual Events in the File channel
-and removes corrupted Events.
+文件channel完整性校验工具可验证文件channel中各个event的完整性，并删除损坏的event。
 
-The tools can be run as follows::
+这个工具可以通过下面这种方式开启：
+
+.. code-block:: none
 
   $bin/flume-ng tool --conf ./conf FCINTEGRITYTOOL -l ./datadir
 
-where datadir is the comma separated list of data directory to be verified.
+datadir 是即将被校验的用逗号分隔的目录列表。
 
-Following are the options available
+以下是可选的参数
 
 =======================  ====================================================================
-Option Name              Description
+选项                      解释
 =======================  ====================================================================
-h/help                   Displays help
-**l/dataDirs**           Comma-separated list of data directories which the tool must verify
+h/help                   显示帮助信息
+**l/dataDirs**           校验工具会校验的目录列表，多个用逗号分隔
 =======================  ====================================================================
 
-Event Validator Tool
+Event校验工具
 --------------------
 
-Event validator tool can be used to validate the File Channel Event's in application specific way.
-The tool applies the user provider validation login on each event and drop the event which do not
-confirm to the logic.
+event验证器工具可用于按照预定好的逻辑验证文件channel中的event。 该工具会在每个event上执行用户自定义的验证逻辑，并删除不符合校验逻辑的event。
 
-The tools can be run as follows::
+.. hint:: 简单说就是一个自定义的event校验器，只能用于验证文件channel中的event。实现的方式就是实现 EventValidator 接口，没有被校验通过的event会被丢弃。
+
+          多bb一句：目前还没想到这个工具有哪些用途，感觉可以用自定义拦截器来实现这种功能，说起拦截器又很奇怪在拦截器章节中居然没有介绍自定义拦截器。
+
+这个工具可以通过下面这种方式开启：
+
+.. code-block:: none
 
   $bin/flume-ng tool --conf ./conf FCINTEGRITYTOOL -l ./datadir -e org.apache.flume.MyEventValidator -DmaxSize 2000
 
-where datadir is the comma separated list of data directory to be verified.
+datadir 是即将被校验的用逗号分隔的目录列表。
 
-Following are the options available
+以下是可选的参数
 
 =======================  ====================================================================
-Option Name              Description
+选项                      解释
 =======================  ====================================================================
-h/help                   Displays help
-**l/dataDirs**           Comma-separated list of data directories which the tool must verify
-e/eventValidator         Fully Qualified Name of Event Validator Implementation. The jar must
-                         be on Flume classpath
+h/help                   显示帮助信息
+**l/dataDirs**           校验工具会校验的目录列表，多个用逗号分隔
+e/eventValidator         自定义验证工具类的全限定类名，这个类的jar包必须在Flume的classpath中
 =======================  ====================================================================
 
-The Event validator implementation must implement EventValidator interface. It's recommended
-not to throw any exception from the implementation as they are treated as invalid events.
-Additional parameters can be passed to EventValitor implementation via -D options.
+自定义的event验证器必须实现 ``EventValidator`` 接口，建议不要抛出任何异常。其他参数可以通过-D选项传递给EventValitor实现。
 
-Let's see an example of simple size based Event Validator, which shall reject event's larger
-than maximum size specified.
+让我们看一个基于简单的event大小验证器的示例，它将拒绝大于指定的最大size的event。
 
 .. code-block:: java
 
@@ -4646,144 +4107,95 @@ than maximum size specified.
   }
 
 
-Topology Design Considerations
+拓扑设计注意事项
 ==============================
-Flume is very flexible and allows a large range of possible deployment
-scenarios. If you plan to use Flume in a large, production deployment, it is
-prudent to spend some time thinking about how to express your problem in
-terms of a Flume topology. This section covers a few considerations.
+Flume非常灵活，可以支持大量的部署方案。如果你打算在大型生产部署中使用Flume，建议你花些时间来思考如何拓扑Flume来解决你的问题。本小节会介绍一些注意事项。
 
-Is Flume a good fit for your problem?
+Flume真的适合你吗？
 -------------------------------------
-If you need to ingest textual log data into Hadoop/HDFS then Flume is the
-right fit for your problem, full stop. For other use cases, here are some
-guidelines:
+如果你需要将文本日志数据提取到Hadoop / HDFS中，那么Flume最合适不过了。但是，对于其他情况，你最好看看以下建议：
 
-Flume is designed to transport and ingest regularly-generated event data over
-relatively stable, potentially complex topologies. The notion of "event data"
-is very broadly defined. To Flume, an event is just a generic blob of bytes.
-There are some limitations on how large an event can be - for instance, it
-cannot be larger than what you can store in memory or on disk on a single machine -
-but in practice, flume events can be everything from textual log entries to
-image files. The key property of an event  is that they are generated in a
-continuous, streaming fashion. If your data is not regularly generated
-(i.e. you are trying to do a single bulk load of data into a Hadoop cluster)
-then Flume will still work, but it is probably overkill for your situation.
-Flume likes relatively stable topologies. Your topologies do not need to be
-immutable, because Flume can deal with changes in topology without losing data
-and can also tolerate periodic reconfiguration due to fail-over or
-provisioning. It probably won't work well if you plant to change topologies
-every day, because reconfiguration takes some thought and overhead.
+Flume旨在通过相对稳定，可能复杂的拓扑部署来传输和收集定期生成的event数据。“event数据”定义非常广泛，对于Flume来说一个event就是一个普通的字节数组而已。
+event大小有一些限制，它不能比你的内存或者服务器硬盘还大，实际使用中Flume event可以是文本或图片的任何文件。关键的是这些event应该是以连续的流的方式不断生成的。
+如果你的数据不是定期生成的（比如你将大量的数据批量加载到Hadoop集群中），虽然Flume可以做这个事情，但是有点“杀鸡用牛刀”的感觉，这并不是Flume所擅长和喜欢的工作方式。
+Flume喜欢相对稳定的拓扑结构，但也不是说永远一成不变，Flume可以处理拓扑中的更改而又不丢失数据，还可以处理由于故障转移或者配置的定期重新加载。如果你的拓扑结构每天都会变动，
+那么Flume可能就无法正常的工作了，毕竟重新配置也是需要一定思考和开销的。
 
-Flow reliability in Flume
+.. hint:: 可以这样理解，Flume就像一个高速公路收费员，适合干那种例行性、重复的工作，别总是变来变去，虽然Flume具备一些“随机应变”能力，但是也别太频繁了。
+
+Flume中数据流的可靠性
 -------------------------
-The reliability of a Flume flow depends on several factors. By adjusting these
-factors, you can achieve a wide array of reliability options with Flume.
+Flume 流的可靠性取决于几个因素，通过调整这几个因素，你可以自定这些Flume的可靠性选项。
 
-**What type of channel you use.** Flume has both durable channels (those which
-will persist data to disk) and non durable channels (those which will lose
-data if a machine fails). Durable channels use disk-based storage, and data
-stored in such channels will persist across machine restarts or non
-disk-related failures.
 
-**Whether your channels are sufficiently provisioned for the workload.** Channels
-in Flume act as buffers at various hops. These buffers have a fixed capacity,
-and once that capacity is full you will create back pressure on earlier points
-in the flow. If this pressure propagates to the source of the flow, Flume will
-become unavailable and may lose data.
+#. **使用什么类型的channel。** Flume有持久型的channel（将数据保存在磁盘上的channel）和非持久化的channel（如果机器故障就会丢失数据的channel）。持久化的channel使用基于磁盘的存储，存储在这类channel中的数据不受机器重启或其他非磁盘故障影响。
 
-**Whether you use redundant topologies.** Flume let's you replicate flows
-across redundant topologies. This can provide a very easy source of fault
-tolerance and one which is overcomes both disk or machine failures. 
+#. **channel是否能充分满足工作负载。** channel在Flume中扮演了数据流传输的缓冲区，这些缓冲区都有固定容量，一旦channel被占满后，就会将压力传播到数据流的前面节点上。如果压力传播到了source节点上，此时Flume将变得不可用并且可能丢失数据。
 
-*The best way to think about reliability in a Flume topology is to consider
-various failure scenarios and their outcomes.* What happens if a disk fails?
-What happens if a machine fails? What happens if your terminal sink
-(e.g. HDFS) goes down for some time and you have back pressure? The space of
-possible designs is huge, but the underlying questions you need to ask are
-just a handful.
+#. **是否使用冗余拓扑。** 冗余的拓扑可以复制数据流做备份。这样就提供了一个容错机制，并且可以克服磁盘或者机器故障。
 
-Flume topology design
+在设计一个可靠的Flume拓扑时最好的办法就是把各种故障和故障导致的结果都提前想到。如果磁盘发生故障会怎么样？如果机器出现故障会怎么样？如果你的末端sink（比如HDFS sink）挂掉一段时间遭到背压怎么办？拓扑的设计方案多种多样，但是能想到的常见问题也就这么多。
+
+Flume拓扑设计
 ---------------------
-The first step in designing a Flume topology is to enumerate all sources
-and destinations (terminal sinks) for your data. These will define the edge
-points of your topology. The next consideration is whether to introduce
-intermediate aggregation tiers or event routing. If you are collecting data
-form a large number of sources, it can be helpful to aggregate the data in
-order to simplify ingestion at the terminal sink. An aggregation tier can
-also smooth out burstiness from sources or unavailability at sinks, by
-acting as a buffer. If you are routing data between different locations,
-you may also want to split flows at various points: this creates
-sub-topologies which may themselves include aggregation points.
+拓扑设计第一步就是要确定要使用的 source 和 sink（在数据流中最末端的sink节点）。这些确定了你Flume拓扑集群的边缘。下一个要考虑的因素是是否引入中间的聚合层和event路由节点。
+如果要从大量的source中收集数据，则聚合数据以简化末端接收器的收集挺有帮助的。
+聚合层还可以充当缓冲区来缓解突发的 source 流量 和 sink 的不可用情况。如果你想路由不同位置间的数据，你可能还希望在一些点来分割流：这样就会创建本身包含聚合点的子拓扑。
 
-Sizing a Flume deployment
+计算Flume部署所需要的节点
 -------------------------
-Once you have an idea of what your topology will look like, the next question
-is how much hardware and networking capacity is needed. This starts by
-quantifying how much data you generate. That is not always
-a simple task! Most data streams are bursty (for instance, due to diurnal
-patterns) and potentially unpredictable. A good starting point is to think
-about the maximum throughput you'll have in each tier of the topology, both
-in terms of *events per second* and *bytes per second*. Once you know the
-required throughput of a given tier, you can calulate a lower bound on how many
-nodes you require for that tier. To determine attainable throughput, it's
-best to experiment with Flume on your hardware, using synthetic or sampled
-event data. In general, disk-based channels
-should get 10's of MB/s and memory based channels should get 100's of MB/s or
-more. Performance will vary widely, however depending on hardware and
-operating environment.
+一旦你对自己如何拓扑部署Flume集群节点有了大致的方案，下一个问题就是需要多少硬件和网络流量。首先量化你会产生多少要收集的数据，这个不太好计算，因为大多数情况下数据都是突发性的（比如由于昼夜交换）并且可能还不太好预测。
+我们可以先确定每个拓扑层的最大吞吐量，包括每秒event数、每秒字节数，一旦确定了某一层的所需吞吐量，就可以计算这一层所需的最小节点数。要确定可达到的吞吐量，最好使用合成或采样event数据在你的硬件上测试Flume。通常情况下，
+文件channel能达到10MB/s的速率，内存channel应该能达到100MB/s或更高的速率，不过硬件和操作系统不同，性能指标也会有一些差异。
 
-Sizing aggregate throughput gives you a lower bound on the number of nodes
-you will need to each tier. There are several reasons to have additional
-nodes, such as increased redundancy and better ability to absorb bursts in load.
+计算聚合吞吐量可以确定每层所需最小节点数，需要几个额外的节点，比如增加冗余和处理突发的流量。
 
-Troubleshooting
+故障排除
 ===============
 
-Handling agent failures
+处理agent失败
 -----------------------
 
-If the Flume agent goes down, then the all the flows hosted on that agent are
-aborted. Once the agent is restarted, then flow will resume. The flow using
-file channel or other stable channel will resume processing events where it left
-off. If the agent can't be restarted on the same hardware, then there is an option to
-migrate the database to another hardware and setup a new Flume agent that
-can resume processing the events saved in the db. The database HA futures
-can be leveraged to move the Flume agent to another host.
+如果Flume的agent挂掉，则该agent上托管的所有流都将中止。 重新启动agent后，这些流将恢复。 使用文件channel或其他稳定channel的流将从中断处继续处理event。 如果无法在同一硬件上重新启动agent，则可以选择将数据库迁移到另一个硬件并设置新的Flume agent，
+该agent可以继续处理db中保存的event。 利用数据库的高可用特性将Flume agent转移到另一个主机。
 
-Compatibility
+兼容性
 -------------
 
 HDFS
 ~~~~
 
-Currently Flume supports HDFS 0.20.2 and 0.23.
+Flume目前支持HDFS 0.20.2 and 0.23版本。
 
 AVRO
 ~~~~
 
-TBD
+待完善。（不是没翻译，是原文档上就没有(/ □ \)）
 
 Additional version requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TBD
+待完善。（不是没翻译，是原文档上就没有(/ □ \)）
 
 Tracing
 -------
 
-TBD
+待完善。（不是没翻译，是原文档上就没有(/ □ \)）
 
 More Sample Configs
 -------------------
 
-TBD
+待完善。（不是没翻译，是原文档上就没有(/ □ \)）
 
-Component Summary
+内置组件
 =================
 
+.. hint:: 基本上你能想到的常见的数据来源（source）与目的地（sink）Flume都帮我们实现了，下表是Flume自带的一些组件和它们的别名，这个别名在实际使用的时候非常方便。看一遍差不多也就记住了，记不住也没关系，知道大概有哪些就行了。
+
+.. hint:: 这些别名配置是不区分大小写的。
+
 ============================================================  ======================  ====================================================================
-Component Interface                                           Type Alias              Implementation Class
+组件接口                                                       别名                    实现类
 ============================================================  ======================  ====================================================================
 org.apache.flume.Channel                                      memory                  org.apache.flume.channel.MemoryChannel
 org.apache.flume.Channel                                      jdbc                    org.apache.flume.channel.jdbc.JdbcChannel
@@ -4844,13 +4256,15 @@ org.apache.flume.serialization.EventSerializer$Builder        avro_event        
 org.apache.flume.serialization.EventSerializer$Builder        --                      org.example.MyEventSerializer$Builder
 ============================================================  ======================  ====================================================================
 
-Alias Conventions
+配置命名约定
 =================
 
-These conventions for alias names are used in the component-specific examples above, to keep the names short and consistent across all examples.
+本文档之前给出的例子都按照下面的别名规范来命名，以使所有示例中的名称保持简短和一致。
+
+.. hint:: 前面的每个配置范例里面的agent都叫做a1，就是遵循了下表的约定。
 
 ==========  =================
-Alias Name  Alias Type
+别名         代表组件
 ==========  =================
 a           **a**\ gent
 c           **c**\ hannel

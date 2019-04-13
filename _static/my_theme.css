@@ -1,8 +1,10 @@
 @import url("classic.css");
 
 div.body {
-	width:1400px;
+	/*width:1400px;
+	max-width: 1690px;*/
 	max-width: 1690px;
+	width:96%;
 }
 
 /* 提示框样式 */
