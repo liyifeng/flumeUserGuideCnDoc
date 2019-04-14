@@ -2058,7 +2058,7 @@ Thrift Sink
 batch-size                   100          一起批量发送 event 数量
 connect-timeout              20000        第一次连接请求（握手）的超时时间，单位：毫秒
 request-timeout              20000        请求超时时间，单位：毫秒
-connection-reset-interval    none         重置连接到下一跳之前的时间量（单位：秒）。 这将强制 Thrift Sink 重新连接到下一跳。 允许接收器在添加了新的主机时连接到硬件负载均衡器后面的主机，而无需重新启动 agent。
+reset-connection-interval    none         重置连接到下一跳之前的时间量（单位：秒）。 这将强制 Thrift Sink 重新连接到下一跳。 允许接收器在添加了新的主机时连接到硬件负载均衡器后面的主机，而无需重新启动 agent。
 ssl                          false        设置为 true 表示接收器开启 SSL。下面的 ``truststore`` 、 ``truststore-password`` 、 ``truststore-type`` 就是开启 SSL 后使用的参数
 truststore                   --           自定义 Java 信任库文件的路径。 Flume 使用此文件中的证书颁发机构信息来确定是否应该信任远程 Avro Source 的 SSL 身份验证凭据。 如果未指定，将使用缺省 Java JSSE 证书颁发机构文件（通常为 Oracle JRE 中的“jssecacerts”或“cacerts”）。
 truststore-password          --           上面配置的信任库的密码
@@ -2070,7 +2070,7 @@ client-keytab                —-           Thrift Sink 与 ``client-principal``
 server-principal             --           Thrift Sink 将要连接到的 Thrift Source 的 kerberos 主体。
 ==========================   ===========  ==============================================
 
-.. hint:: 官方英文文档 ``connection-reset-interval`` 这个参数是错误的，在源码里面是 ``reset-connection-interval`` ，从 Avro Sink 也能看到正确的应该是 ``reset-connection-interval`` 。
+.. hint:: 官方英文文档 ``connection-reset-interval`` 这个参数是错误的，在源码里面是 ``reset-connection-interval`` 。
 
 配置范例：   
 
