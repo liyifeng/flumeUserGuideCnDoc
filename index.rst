@@ -48,13 +48,13 @@ Apache Flume是Apache软件基金会（ASF）的顶级项目
 
 .. hint:: 唯一有用的就是第一个，Java1.8以上的运行环境，其余都是废话。我找出了最近几个Flume版本对JRE的依赖，如下表：
 
-==================================   ==========================================
-Flume版本                             依赖的JRE版本   
-==================================   ==========================================
-Flume 1.8.0                          Java1.8或更高版本         
-Flume 1.7.0                          Java1.7或更高版本      
-Flume 1.4.0、1.5.0、1.5.2、1.6.0      Java1.6或更高版本（建议使用1.7）
-==================================   ==========================================
+========================================   ==========================================
+Flume版本                                   依赖的JRE版本   
+========================================   ==========================================
+Flume 1.8.0                                Java1.8 或更高版本         
+Flume 1.7.0                                Java1.7 或更高版本      
+Flume 1.4.0、1.5.0、1.5.2、1.6.0            Java1.6 或更高版本（建议使用1.7）
+========================================   ==========================================
 
 体系结构
 ------------
@@ -182,11 +182,11 @@ bin目录下的flume-ng是flume的启动脚本，启动时需要指定agent的�
 
   $ bin/flume-ng agent --conf conf --conf-file example.conf --name a1 -Dflume.root.logger=INFO,console
 
-.. warning:: 请注意，在完整的部署中通常会包含 --conf=<conf-dir>这个参数，<conf-dir>目录里面包含了flume-env.sh和一个log4j properties文件，在这个例子里面，我们强制Flume把日志输出到了控制台，运行的时候没有任何自定义的环境脚本。
+请注意，在完整的部署中通常会包含 --conf=<conf-dir>这个参数，<conf-dir>目录里面包含了flume-env.sh和一个log4j properties文件，在这个例子里面，我们强制Flume把日志输出到了控制台，运行的时候没有任何自定义的环境脚本。
 
 测试一下我们的这个例子吧，打开一个新的终端窗口，用telnet命令连接本机的44444端口，然后输入Hello world！后按回车，这时收到服务器的响应[OK]（这是NetCat TCP Source默认给返回的），说明一行数据已经成功发送。
 
-.. code-block:: properties
+.. code-block:: none
 
   $ telnet localhost 44444
   Trying 127.0.0.1...
@@ -254,7 +254,7 @@ Flume可以替换配置文件中的环境变量，例如：
 
 Flume支持使用Zookeeper配置agent。**这是个实验性的功能**。配置文件需要上传到zookeeper中，在一个可配置前缀下。配置文件存储在Zookeeper节点数据里。下面是a1 和 a2 agent在Zookeeper节点树的配置情况。
 
-.. code-block:: properties
+.. code-block:: none
 
   - /flume
    |- /a1 [Agent config file]
@@ -820,7 +820,7 @@ restartThrottle  10000        尝试重新启动之前等待的时间（单位�
 restart          false        如果执行命令线程挂掉，是否重启
 logStdErr        false        是否会记录命令的stderr内容
 batchSize        20           读取并向channel发送数据时单次发送的最大数量
-batchTimeout     3000         向下游推送数据时，单次批量发送event的最大等待时间（单位：毫秒），如果等待了batchTimeout毫秒后未达到一次批量发送数量，则仍然执行发送操作。
+batchTimeout     3000         向下游推送数据时，单次批量发送event的最大等待时间（毫秒），如果等待了batchTimeout毫秒后未达到一次批量发送数量，则仍然执行发送操作。
 selector.type    replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
 selector.*                    channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
 interceptors     --           该source所使用的拦截器，多个用空格分开
@@ -828,9 +828,9 @@ interceptors.*                拦截器相关的属性配置
 ===============  ===========  ============================================================================================
 
 .. warning:: ExecSource相比于其他异步source的问题在于，如果无法将event放入Channel中，ExecSource无法保证客户端知道它。在这种情况下数据会丢失。例如，最常见的用法是用tail -F [file]这种，应用程序负责向磁盘写入日志文件，
-Flume 会用tail命令从日志文件尾部读取，将每行作为一个event发送。这里有一个明显的问题：如果channel满了然后无法继续发送event，会发生什么？由于种种原因，Flume无法向输出日志文件的应用程序指示它需要保留日志或某些event尚未发送。
-总之你需要知道：当使用ExecSource等单向异步接口时，您的应用程序永远无法保证数据已经被成功接收！作为此警告的延伸，此source传递event时没有交付保证。为了获得更强的可靠性保证，请考虑使用Spooling Directory Source，Taildir Source
-或通过SDK直接与Flume集成。
+             Flume 会用tail命令从日志文件尾部读取，将每行作为一个event发送。这里有一个明显的问题：如果channel满了然后无法继续发送event，会发生什么？由于种种原因，Flume无法向输出日志文件的应用程序指示它需要保留日志或某些event尚未发送。
+             总之你需要知道：当使用ExecSource等单向异步接口时，您的应用程序永远无法保证数据已经被成功接收！作为此警告的延伸，此source传递event时没有交付保证。为了获得更强的可靠性保证，请考虑使用 `Spooling Directory Source`_，
+             `Taildir Source`_ 或通过SDK直接与Flume集成。
 
 配置范例：   
 
@@ -935,21 +935,19 @@ fileHeaderKey             file            添加绝对路径名到header里面�
 basenameHeader            false           是否添加文件名（只是文件名，不包括路径）到header 中
 basenameHeaderKey         basename        添加文件名到header里面所使用的key（配合上面的basenameHeader一起使用）
 includePattern            ^.*$            指定会被收集的文件名正则表达式,它跟下面的ignorePattern不冲突，可以一起使用。如果一个文件名同时被这两个正则匹配到，则会被忽略，换句话说ignorePattern的优先级更高
-ignorePattern             ^$              指定要忽略的文件名称正则表达式。它可以跟 ``includePattern`` 一起使用，如果一个文件被``ignorePattern`` 和 ``includePattern``两个正则都匹配到，这个文件会被忽略。
+ignorePattern             ^$              指定要忽略的文件名称正则表达式。它可以跟 ``includePattern`` 一起使用，如果一个文件被``ignorePattern`` 和 ``includePattern`` 两个正则都匹配到，这个文件会被忽略。
 trackerDir                .flumespool     用于存储与文件处理相关的元数据的目录。如果配置的是相对目录地址，它会在spoolDir中开始创建
-                                          
 consumeOrder              oldest          设定收集目录内文件的顺序。默认是“先来先走”（也就是最先生成的文件先被收集），可选值有： ``oldest`` 、 ``youngest`` 和 ``random`` 。当使用oldest和youngest这两种选项的时候，Flume会扫描整个文件夹进行对比排序，当文件夹里面有大量的文件的时候可能会运行缓慢。
                                           当使用random时候，如果一直在产生新的文件，有一部分老文件可能会很久才会被收集
 pollDelay                 500             Flume监视目录内新文件产生的时间间隔，单位是毫秒
 recursiveDirectorySearch  false           是否收集子目录下的日志文件
-maxBackoff                4000            等待写入channel的最长退避时间，如果channel已满实例启动时会自动设定一个很低的值，当遇到ChannelException异常时会自动以指数级增加这个超时时间，
-                                          直到达到设定的这个最大值为止
+maxBackoff                4000            等待写入channel的最长退避时间，如果channel已满实例启动时会自动设定一个很低的值，当遇到ChannelException异常时会自动以指数级增加这个超时时间，直到达到设定的这个最大值为止。
 batchSize                 100             每次批量传输到channel时的size大小
 inputCharset              UTF-8           解析器读取文件时使用的编码（解析器会把所有文件当做文本读取）
-decodeErrorPolicy         ``FAIL``        当从文件读取时遇到不可解析的字符时如何处理
-                                          ``FAIL`` ：抛出异常，解析文件失败
-                                          ``REPLACE`` ：替换掉这些无法解析的字符，通常是用U+FFFD
-                                          ``IGNORE`` ：忽略无法解析的字符
+decodeErrorPolicy         ``FAIL``        当从文件读取时遇到不可解析的字符时如何处理。
+                                          ``FAIL`` ：抛出异常，解析文件失败；
+                                          ``REPLACE`` ：替换掉这些无法解析的字符，通常是用U+FFFD；
+                                          ``IGNORE`` ：忽略无法解析的字符。
 deserializer              ``LINE``        指定一个把文件中的数据行解析成FlumeEvent的解析器。默认是把每一行当做一个event进行解析，所有解析器必须实现EventDeserializer.Builder接口
 deserializer.*                            解析器的相关属性，根据解析器不同而不同
 bufferMaxLines            --              （已废弃）
@@ -1418,7 +1416,7 @@ Syslog TCP Source
 **port**         --           要监听的端口
 eventSize        2500         每行数据的最大字节数
 keepFields       none         是否保留syslog消息头中的一些属性到event中，可选值 ``all`` 、``none`` 或自定义指定保留的字段。如果设置为all，则会保留Priority, Timestamp 和Hostname三个属性到event中。
-                              也支持单独指定保留哪些属性（支持的属性有：priority, version, timestamp, hostname），用空格分开即可。现在已经不建议使用 ``true ``和 ``false``，建议改用 ``all`` 和 ``none ``了。
+                              也支持单独指定保留哪些属性（支持的属性有：priority, version, timestamp, hostname），用空格分开即可。现在已经不建议使用 ``true ``和 ``false``，建议改用 ``all`` 和 ``none`` 了。
 selector.type    replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示：复制、多路分发
 selector.*                    channel选择器的相关属性，具体属性根据设定的selector.type 值不同而不同
 interceptors     --           该source所使用的拦截器，多个用空格分开
@@ -1786,12 +1784,12 @@ HDFS Sink
 %[FQDN]          agent实例所在主机的规范hostname
 ===============  =================================================
 
-.. note:: %[localhost], %[IP] and %[FQDN]这三个转义符实际上都是用java的API来获取的，在一些网络环境下可能会获取失败。
+%[localhost], %[IP] and %[FQDN]这三个转义符实际上都是用java的API来获取的，在一些网络环境下可能会获取失败。
 
 正在打开的文件会在名称末尾加上“.tmp”的后缀。文件关闭后，会自动删除此扩展名。这样容易排除目录中的那些已完成的文件。
 必需的参数已用 **粗体** 标明。      
 
-.. note:: 对于所有与时间相关的转义字符，event header中必须存在带有“timestamp”键的属性（除非 ``hdfs.useLocalTimeStamp`` 设置为true）。快速自动添加此时间戳的一种方法是使用 `时间戳添加拦截器`_（ TimestampInterceptor）。
+对于所有与时间相关的转义字符，event header中必须存在带有“timestamp”键的属性（除非 ``hdfs.useLocalTimeStamp`` 设置为true）。快速自动添加此时间戳的一种方法是使用 `时间戳添加拦截器`_ 。
 
 ======================  ============  ======================================================================
 属性名                   默认值        解释
@@ -1835,7 +1833,7 @@ hdfs.closeTries         0             开始尝试关闭文件时最大的重命
                                       如果设置为0，接收器会一直尝试重命名文件直到成功为止；
                                       关闭文件操作失败时这个文件可能仍然是打开状态，这种情况数据还是完整的不会丢失，只有在Flume重启后文件才会关闭。
 hdfs.retryInterval      180           连续尝试关闭文件的时间间隔（秒）。 每次关闭操作都会调用多次 RPC 往返于 Namenode ，因此将此设置得太低会导致 Namenode 上产生大量负载。 如果设置为0或更小，则如果第一次尝试失败，将不会再尝试关闭文件，并且可能导致文件保持打开状态或扩展名为“.tmp”。
-serializer              ``TEXT``      event 转为文件使用的序列化器。其他可选值有： ``avro_event`` 或其他 ``EventSerializer.Builderinterface`` 接口的实现类的全限定类名。所有 Flume 内置的序列化器可参考 `Event 序列化器`_ 一节。
+serializer              ``TEXT``      event 转为文件使用的序列化器。其他可选值有： ``avro_event`` 或其他 ``EventSerializer.Builderinterface`` 接口的实现类的全限定类名。
 serializer.*                          根据上面 ``serializer`` 配置的类型来根据需要添加序列化器的参数
 ======================  ============  ======================================================================
 
@@ -1886,7 +1884,6 @@ roundUnit                 minute           舍入值的单位，可选值：``se
 roundValue                1                舍入到小于当前时间的最高倍数（使用 ``roundUnit`` 配置的单位）
                                            例子1：roundUnit=second，roundValue=10，则14:31:18这个时间戳会被舍入到14:31:10;
                                            例子2：roundUnit=second，roundValue=30，则14:31:18这个时间戳会被舍入到14:31:00，14:31:42这个时间戳会被舍入到14:31:30;
-                                          （上面例子中时间戳没有包含年月日，明白这个意思就行了）
 timeZone                  Local Time       应用于解析分区中转义序列的时区名称，比如：America/Los_Angeles、Asia/Shanghai、Asia/Tokyo等
 useLocalTimeStamp         false            替换转义序列时是否使用本地时间戳（否则使用event header中的timestamp ）
 ======================    ===============  ======================================================================
@@ -1943,7 +1940,7 @@ serializer.serdeSeparator     Ctrl-A        （类型：字符）自定义底层
 
 假设Hive表如下：
 
-.. code-block:: properties
+.. code-block:: none
 
  create table weblogs ( id int , msg string )
      partitioned by (continent string, country string, time string)
@@ -2681,13 +2678,12 @@ byteCapacity                                    Channel 中最大允许存储所
                                                 这时候这些 event 占用的空间是累加的，并不会只计算一次。如果这个值设置为0（不限制），就会达到200G左右的内部硬件限制。
 ============================  ================  ===============================================================================
 
+
 .. hint:: 举2个例子来帮助理解最后两个参数吧：
 
-          两个例子都有共同的前提，假设JVM最大的可用内存是100M（或者说JVM启动时指定了-Xmx=100m）。
-
-          例子1： ``byteCapacityBufferPercentage`` 设置为20， ``byteCapacity`` 设置为52428800（就是50M），此时内存中所有 event body 的总大小就被限制为50M *（1-20%）=40M，内存channel可用内存是50M。
-
-          例子2： ``byteCapacityBufferPercentage`` 设置为10， ``byteCapacity`` 不设置，此时内存中所有 event body 的总大小就被限制为100M*80%*（1-10%）=72M，内存channel可用内存是80M。
+          例子1： ``byteCapacityBufferPercentage`` 设置为20， ``byteCapacity`` 设置为52428800（就是50M），此时内存中所有 event body 的总大小就被限制为50M \*（1-20%）=40M，内存channel可用内存是50M。
+          
+          例子2： ``byteCapacityBufferPercentage`` 设置为10， ``byteCapacity`` 不设置，此时内存中所有 event body 的总大小就被限制为100M \* 80% \*（1-10%）=72M，内存channel可用内存是80M。
 
 配置范例：   
 
@@ -2782,9 +2778,9 @@ kafka.consumer.auto.offset.reset         latest                      当Kafka中
                                                                      latest：自动重置偏移量到最新的位置；
                                                                      none：如果没有为消费者的组找到任何先前的偏移量，则向消费者抛出异常；
                                                                      else：向消费者抛出异常。
-kafka.producer.security.protocol         PLAINTEXT                   设置使用哪种安全协议写入Kafka。可选值：``SASL_PLAINTEXT``、``SASL_SSL`` 和 ``SSL``有关安全设置的其他信息，请参见下文。
+kafka.producer.security.protocol         PLAINTEXT                   设置使用哪种安全协议写入Kafka。可选值： ``SASL_PLAINTEXT`` 、 ``SASL_SSL`` 和 ``SSL`` 有关安全设置的其他信息，请参见下文。
 kafka.consumer.security.protocol         PLAINTEXT                   与上面的相同，只不过是用于消费者。
-*more producer/consumer security props*                              如果使用了 ``SASL_PLAINTEXT``、``SASL_SSL`` 或 ``SSL`` 等安全协议，参考 `Kafka security <http://kafka.apache.org/documentation.html#security>`_ 来为生产者、消费者增加安全相关的参数配置
+*more producer/consumer security props*                              如果使用了 ``SASL_PLAINTEXT`` 、 ``SASL_SSL`` 或 ``SSL`` 等安全协议，参考 `Kafka security <http://kafka.apache.org/documentation.html#security>`_ 来为生产者、消费者增加安全相关的参数配置
 =======================================  ==========================  ==========================================================
 
 下表是弃用的一些参数
@@ -2796,7 +2792,6 @@ brokerList                        --                          改用 kafka.boots
 topic                             flume-channel               改用 kafka.topic
 groupId                           flume                       改用 kafka.consumer.group.id
 readSmallestOffset                false                       改用 kafka.consumer.auto.offset.reset
-
 ================================  ==========================  =============================================================
 
 .. note:: 由于channel是负载均衡的，第一次启动时可能会有重复的event出现。
@@ -3047,8 +3042,8 @@ Spillable Memory Channel
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 这个channel会将event存储在内存队列和磁盘上。 内存队列充当主存储，内存装满之后会存到磁盘。 磁盘存储使用嵌入的文件channel进行管理。 当内存队列已满时，其他传入event将存储在文件channel中。
- 这个channel非常适用于需要高吞吐量存储器channel的流，但同时需要更大容量的文件channel，以便更好地容忍间歇性接收器侧（sink）中断或消费速率降低。 
-在这种异常情况下，吞吐量将大致降低到文件channel速度。 如果agent程序崩溃或重新启动，只有存储在磁盘上的event能恢复。 **这个channel目前是实验性的，不建议用于生产环境**。
+这个channel非常适用于需要高吞吐量存储器channel的流，但同时需要更大容量的文件channel，以便更好地容忍间歇性接收器侧（sink）中断或消费速率降低。 
+在这种异常情况下，吞吐量将大致降低到文件channel速度。 如果agent程序崩溃或重新启动，只有存储在磁盘上的event能恢复。 **这个channel目前是实验性的，不建议用于生产环境** 。
 
 .. hint:: 这个channel的机制十分像Windows系统里面的「虚拟内存」。兼顾了内存channel的高吞吐量和文件channel的可靠、大容量优势。
 
@@ -3236,9 +3231,8 @@ selector.type  --       你写的自定义选择器的全限定类名，比如�
 属性                  默认值       解释
 ===================  ===========  =================================================================================
 **sinks**            --           这一组的所有sink名，多个用空格分开
-**processor.type**   ``default``  这个sink组的逻辑处理器类型，可选值 ``default``（默认一对一的）、``failover``（故障转移）、``load_balance``（负载均衡）
+**processor.type**   ``default``  这个sink组的逻辑处理器类型，可选值 ``default`` （默认一对一的）、 ``failover``（故障转移）、 ``load_balance`` （负载均衡）
 ===================  ===========  =================================================================================
-
 
 配置范例：   
 
