@@ -388,14 +388,11 @@ Flume支持多路复用数据流到一个或多个目的地。这是通过使用
           如果硬要翻译这些组件的话，三大组件分别是数据源（source）、数据目的地（sink）和缓冲池（channel）。其他几个分别是event多路分发的channel选择器（channel selector），接收器组逻辑处理器（sink processor）、序列化器（serializer）、拦截器（interceptor）。
 
 
-Defining the flow
+定义流
 -----------------
 
-To define the flow within a single agent, you need to link the sources and
-sinks via a channel. You need to list the sources, sinks and channels for the
-given agent, and then point the source and sink to a channel. A source instance
-can specify multiple channels, but a sink instance can only specify one channel.
-The format is as follows:
+要在单个agent中定义流，你需要通过channel连接source和sink。需要在配置文件中列出所有的source、sink和channel，然后将source和sink指向channel。一个source可以连接多个channel，但是sink只能连接一个channel。格式如下：
+
 
 .. code-block:: properties
 
@@ -410,33 +407,24 @@ The format is as follows:
   # set channel for sink
   <Agent>.sinks.<Sink>.channel = <Channel1>
 
-For example, an agent named agent_foo is reading data from an external avro client and sending
-it to HDFS via a memory channel. The config file weblog.config could look like:
+例如，一个叫做agent_foo的agent从外部avro客户端读取数据并通过内存channel将其发送到HDFS（准确说并不是通过内存channel发送的数据，而是使用内存channel缓存，然后通过HDFS Sink从channel读取后发送的），它的配置文件应该这样配：
 
 .. code-block:: properties
 
-  # list the sources, sinks and channels for the agent
+  # 列出agent的所有source、sink和channel
   agent_foo.sources = avro-appserver-src-1
   agent_foo.sinks = hdfs-sink-1
   agent_foo.channels = mem-channel-1
+  
+  agent_foo.sources.avro-appserver-src-1.channels = mem-channel-1   # 指定与source avro-appserver-src-1 相连接的channel是mem-channel-1
+  agent_foo.sinks.hdfs-sink-1.channel = mem-channel-1               # 指定与sink hdfs-sink-1 相连接的channel是mem-channel-1
 
-  # set channel for source
-  agent_foo.sources.avro-appserver-src-1.channels = mem-channel-1
+通过上面的配置，就形成了[avro-appserver-src-1]->[mem-channel-1]->[hdfs-sink-1]的数据流，这将使event通过内存channel（mem-channel-1）从avro-appserver-src-1流向hdfs-sink-1，当agent启动时，读取配置文件实例化该流。
 
-  # set channel for sink
-  agent_foo.sinks.hdfs-sink-1.channel = mem-channel-1
-
-This will make the events flow from avro-AppSrv-source to hdfs-Cluster1-sink
-through the memory channel mem-channel-1. When the agent is started with the
-weblog.config as its config file, it will instantiate that flow.
-
-Configuring individual components
+配置单个组件
 ---------------------------------
 
-After defining the flow, you need to set properties of each source, sink and
-channel. This is done in the same hierarchical namespace fashion where you set
-the component type and other values for the properties specific to each
-component:
+定义流后，需要配置source、sink和channel各个组件的属性。配置的方式是以相同的分层命名空间的方式，你可以设置各个组件的类型以及基于其类型特有的属性。
 
 .. code-block:: properties
 
@@ -449,250 +437,213 @@ component:
   # properties for sinks
   <Agent>.sources.<Sink>.<someProperty> = <someValue>
 
-The property "type" needs to be set for each component for Flume to understand
-what kind of object it needs to be. Each source, sink and channel type has its
-own set of properties required for it to function as intended. All those need
-to be set as needed. In the previous example, we have a flow from
-avro-AppSrv-source to hdfs-Cluster1-sink through the memory channel
-mem-channel-1. Here's an example that shows configuration of each of those
-components:
+每个组件都应该有一个 ``type`` 属性，这样flume才能知道它是什么类型的组件。每个组件类型都有它自己的一些属性。所有的这些都是根据需要进行配置。在前面的示例中，我们已经构建了一个avro-appserver-src-1到hdfs-sink-1的数据流，
+下面的例子展示了如何继续给这几个组件配置剩余的属性。
 
 .. code-block:: properties
 
+  # 列出所有的组件
   agent_foo.sources = avro-AppSrv-source
   agent_foo.sinks = hdfs-Cluster1-sink
   agent_foo.channels = mem-channel-1
 
-  # set channel for sources, sinks
+  # 将source和sink与channel相连接
+  #（省略）
 
-  # properties of avro-AppSrv-source
-  agent_foo.sources.avro-AppSrv-source.type = avro
-  agent_foo.sources.avro-AppSrv-source.bind = localhost
-  agent_foo.sources.avro-AppSrv-source.port = 10000
+  # 配置avro-AppSrv-source的属性
+  agent_foo.sources.avro-AppSrv-source.type = avro         # avro-AppSrv-source 的类型是Avro Source
+  agent_foo.sources.avro-AppSrv-source.bind = localhost    # 监听的hostname或者ip是localhost
+  agent_foo.sources.avro-AppSrv-source.port = 10000        # 监听的端口是10000
 
-  # properties of mem-channel-1
-  agent_foo.channels.mem-channel-1.type = memory
-  agent_foo.channels.mem-channel-1.capacity = 1000
-  agent_foo.channels.mem-channel-1.transactionCapacity = 100
+  # 配置mem-channel-1的属性
+  agent_foo.channels.mem-channel-1.type = memory                # channel的类型是内存channel
+  agent_foo.channels.mem-channel-1.capacity = 1000              # channel的最大容量是1000
+  agent_foo.channels.mem-channel-1.transactionCapacity = 100    # source和sink每次从channel写入和读取的event数量
 
-  # properties of hdfs-Cluster1-sink
-  agent_foo.sinks.hdfs-Cluster1-sink.type = hdfs
-  agent_foo.sinks.hdfs-Cluster1-sink.hdfs.path = hdfs://namenode/flume/webdata
+  # 配置hdfs-Cluster1-sink的属性
+  agent_foo.sinks.hdfs-Cluster1-sink.type = hdfs                                   # sink的类型是HDFS Sink
+  agent_foo.sinks.hdfs-Cluster1-sink.hdfs.path = hdfs://namenode/flume/webdata     # 写入的HDFS目录路径
 
   #...
 
-Adding multiple flows in an agent
+在agent中增加一个流
 ---------------------------------
 
-A single Flume agent can contain several independent flows. You can list
-multiple sources, sinks and channels in a config. These components can be
-linked to form multiple flows:
+一个flume agent中可以包含多个独立的流。你可以在一个配置文件中列出所有的source、sink和channel等组件，这些组件可以被连接成多个流：
 
 .. code-block:: properties
 
-  # list the sources, sinks and channels for the agent
+  # 这样列出agent的所有source、sink和channel，多个用空格分隔
   <Agent>.sources = <Source1> <Source2>
   <Agent>.sinks = <Sink1> <Sink2>
   <Agent>.channels = <Channel1> <Channel2>
 
-Then you can link the sources and sinks to their corresponding channels (for
-sources) of channel (for sinks) to setup two different flows. For example, if
-you need to setup two flows in an agent, one going from an external avro client
-to external HDFS and another from output of a tail to avro sink, then here's a
-config to do that:
+然后你就可以给这些source、sink连接到对应的channel上来定义两个不同的流。例如，如果你想在一个agent中配置两个流，一个流从外部avro客户端接收数据然后输出到外部的HDFS，另一个流从一个文件读取内容然后输出到Avro Sink。配置如下：
 
 .. code-block:: properties
 
-  # list the sources, sinks and channels in the agent
-  agent_foo.sources = avro-AppSrv-source1 exec-tail-source2
-  agent_foo.sinks = hdfs-Cluster1-sink1 avro-forward-sink2
-  agent_foo.channels = mem-channel-1 file-channel-2
+  # 列出当前配置所有的source、sink和channel
+  agent_foo.sources = avro-AppSrv-source1 exec-tail-source2            # 该agent中有2个sourse，分别是：avro-AppSrv-source1 和exec-tail-source2
+  agent_foo.sinks = hdfs-Cluster1-sink1 avro-forward-sink2             # 该agent中有2个sink，分别是：avro-AppSrv-source1 和exec-tail-source2
+  agent_foo.channels = mem-channel-1 file-channel-2                    # 该agent中有2个channel，分别是：mem-channel-1 file-channel-2 
 
-  # flow #1 configuration
-  agent_foo.sources.avro-AppSrv-source1.channels = mem-channel-1
-  agent_foo.sinks.hdfs-Cluster1-sink1.channel = mem-channel-1
+  # 这里是第一个流的配置
+  agent_foo.sources.avro-AppSrv-source1.channels = mem-channel-1       # 与avro-AppSrv-source1相连接的channel是mem-channel-1
+  agent_foo.sinks.hdfs-Cluster1-sink1.channel = mem-channel-1          # 与hdfs-Cluster1-sink1相连接的channel是mem-channel-1
 
-  # flow #2 configuration
-  agent_foo.sources.exec-tail-source2.channels = file-channel-2
-  agent_foo.sinks.avro-forward-sink2.channel = file-channel-2
+  # 这里是第二个流的配置
+  agent_foo.sources.exec-tail-source2.channels = file-channel-2        # 与exec-tail-source2相连接的channel是file-channel-2
+  agent_foo.sinks.avro-forward-sink2.channel = file-channel-2          # 与avro-forward-sink2相连接的channel是file-channel-2
 
-Configuring a multi agent flow
+配置一个有多agent的流
 ------------------------------
 
-To setup a multi-tier flow, you need to have an avro/thrift sink of first hop
-pointing to avro/thrift source of the next hop. This will result in the first
-Flume agent forwarding events to the next Flume agent. For example, if you are
-periodically sending files (1 file per event) using avro client to a local
-Flume agent, then this local agent can forward it to another agent that has the
-mounted for storage.
+要配置一个多层级的流，你需要在第一层agent的末尾使用Avro/Thrift Sink，并且指向下一层agent的Avro/Thrift Source。这样就能将第一层agent的event发送到下一层的agent了。例如，你使用avro客户端定期地发送文件（每个event一个文件）到本地的
+event上，然后本地的agent可以把event发送到另一个配置了存储功能的agent上。
 
-Weblog agent config:
+.. hint:: 语言描述似乎不太容易理解，大概是这样的结构[source1]->[channel]->[Avro Sink]->[Avro Source]->[channel2]->[Sink2]
+
+一个收集web日志的agent配置：
 
 .. code-block:: properties
 
-  # list sources, sinks and channels in the agent
+  # 列出这个agent的source、sink和channel
   agent_foo.sources = avro-AppSrv-source
   agent_foo.sinks = avro-forward-sink
   agent_foo.channels = file-channel
 
-  # define the flow
+  # 把source、channel、sink连接起来，组成一个流
   agent_foo.sources.avro-AppSrv-source.channels = file-channel
   agent_foo.sinks.avro-forward-sink.channel = file-channel
 
-  # avro sink properties
+  # avro-forward-sink 的属性配置
   agent_foo.sinks.avro-forward-sink.type = avro
   agent_foo.sinks.avro-forward-sink.hostname = 10.1.1.100
   agent_foo.sinks.avro-forward-sink.port = 10000
 
-  # configure other pieces
+  # 其他部分配置（略）
   #...
 
 
-HDFS agent config:
+存储到HDFS的agent配置：
 
 .. code-block:: properties
 
-  # list sources, sinks and channels in the agent
-  agent_foo.sources = avro-collection-source
-  agent_foo.sinks = hdfs-sink
-  agent_foo.channels = mem-channel
+  # 列出这个agent的source、sink和channel
+  agent_foo.sources = avro-collection-source                              # 只有一个source叫做：avro-collection-source
+  agent_foo.sinks = hdfs-sink                                             # 只有一个sink叫做：hdfs-sink
+  agent_foo.channels = mem-channel                                        # 只有一个channel叫做：mem-channel
 
-  # define the flow
+  # 把source、channel、sink连接起来，组成一个流
   agent_foo.sources.avro-collection-source.channels = mem-channel
   agent_foo.sinks.hdfs-sink.channel = mem-channel
 
-  # avro source properties
+  # Avro Source的属性配置
   agent_foo.sources.avro-collection-source.type = avro
   agent_foo.sources.avro-collection-source.bind = 10.1.1.100
   agent_foo.sources.avro-collection-source.port = 10000
 
-  # configure other pieces
+  # 其他部分配置（略）
   #...
 
-Here we link the avro-forward-sink from the weblog agent to the
-avro-collection-source of the hdfs agent. This will result in the events coming
-from the external appserver source eventually getting stored in HDFS.
+上面两个agent就这样连接到了一起，最终event会从外部应用服务器进入，经过第一个agent流入第二个agent，最终通过hdfs-sink存储到了HDFS。
+
+.. hint:: 什么，不知道两个agent怎么连接到一起的？ 第一个agent的Avro Sink将event发送到了10.1.1.100的10000端口上，而第二个agent的Avro Source从10.1.1.100的10000上接收event，就这样形成了两个agent收尾相接的多agent流。
 
 
-
-Fan out flow
+扇出流
 ------------
 
-As discussed in previous section, Flume supports fanning out the flow from one
-source to multiple channels. There are two modes of fan out, replicating and
-multiplexing. In the replicating flow, the event is sent to all the configured
-channels. In case of multiplexing, the event is sent to only a subset of
-qualifying channels. To fan out the flow, one needs to specify a list of
-channels for a source and the policy for the fanning it out. This is done by
-adding a channel "selector" that can be replicating or multiplexing. Then
-further specify the selection rules if it's a multiplexer. If you don't specify
-a selector, then by default it's replicating:
+如前面章节所述，Flume支持流的扇出形式配置，就是一个source连接多个channel。有两种扇出模式，复制和多路复用。在复制模式下，source中的event会被发送到与source连接的所有channel上。在多路复用模式下，event仅被发送到
+部分channel上。为了分散流量，需要指定好source的所有channel和event分发的策略。这是通过增加一个复制或分发的选择器来实现的，如果是多路复用选择器，还要进一步指定event分发的规则。如果没有配置选择器，默认就是复制选择器。
 
 .. code-block:: properties
 
-  # List the sources, sinks and channels for the agent
+  # 列出这个agent的source、sink和channel，注意这里有1个source、2个channel和2个sink
   <Agent>.sources = <Source1>
   <Agent>.sinks = <Sink1> <Sink2>
   <Agent>.channels = <Channel1> <Channel2>
 
-  # set list of channels for source (separated by space)
+  # 指定与source1连接的channel，这里配置了两个channel
   <Agent>.sources.<Source1>.channels = <Channel1> <Channel2>
 
-  # set channel for sinks
+  # 将两个sink分别与两个channel相连接
   <Agent>.sinks.<Sink1>.channel = <Channel1>
   <Agent>.sinks.<Sink2>.channel = <Channel2>
 
+  # 指定source1的channel选择器类型是复制选择器（按照上段介绍，不显示配置这个选择器的话，默认也是复制）
   <Agent>.sources.<Source1>.selector.type = replicating
 
-The multiplexing select has a further set of properties to bifurcate the flow.
-This requires specifying a mapping of an event attribute to a set for channel.
-The selector checks for each configured attribute in the event header. If it
-matches the specified value, then that event is sent to all the channels mapped
-to that value. If there's no match, then the event is sent to set of channels
-configured as default:
+多路复用选择器具有另外一组属性可以配置来分发数据流。这需要指定event属性到channel的映射，选择器检查event header中每一个配置中指定的属性值，如果与配置的规则相匹配，则该event将被发送到规则设定的channel上。如果没有匹配的规则，则event
+会被发送到默认的channel上，具体看下面配置：
 
 .. code-block:: properties
 
-  # Mapping for multiplexing selector
-  <Agent>.sources.<Source1>.selector.type = multiplexing
-  <Agent>.sources.<Source1>.selector.header = <someHeader>
-  <Agent>.sources.<Source1>.selector.mapping.<Value1> = <Channel1>
-  <Agent>.sources.<Source1>.selector.mapping.<Value2> = <Channel1> <Channel2>
-  <Agent>.sources.<Source1>.selector.mapping.<Value3> = <Channel2>
+  # 多路复用选择器的完整配置如下
+  <Agent>.sources.<Source1>.selector.type = multiplexing                                 # 选择器类型是多路复用
+  <Agent>.sources.<Source1>.selector.header = <someHeader>                               # 假如这个<someHeader>值是abc，则选择器会读取event header中的abc属性来作为分发的依据
+  <Agent>.sources.<Source1>.selector.mapping.<Value1> = <Channel1>                       # 加入这里Value1配置的是3，则event header中abc属性的值等于3的event会被发送到channel1上
+  <Agent>.sources.<Source1>.selector.mapping.<Value2> = <Channel1> <Channel2>            # 同上，event header中abc属性等于Value2的event会被发送到channel1和channel2上
+  <Agent>.sources.<Source1>.selector.mapping.<Value3> = <Channel2>                       # 同上规则，event header中abc属性等于Value3的event会被发送到channel2上
   #...
 
-  <Agent>.sources.<Source1>.selector.default = <Channel2>
+  <Agent>.sources.<Source1>.selector.default = <Channel2>                                # event header读取到的abc属性值不属于上面配置的任何一个的话，默认就会发送到这个channel2上
 
-The mapping allows overlapping the channels for each value.
+映射的配置允许为每个值配置重复的channel
 
-The following example has a single flow that multiplexed to two paths. The
-agent named agent_foo has a single avro source and two channels linked to two sinks:
+下面的例子中，一个数据流被分发到了两个路径上。这个叫agent_foo的agent有一个Avro Source和两个channel，这两个channel分别连接到了两个sink上：
 
 .. code-block:: properties
 
-  # list the sources, sinks and channels in the agent
+  # 列出了agent的所有source、 sink 和 channel
   agent_foo.sources = avro-AppSrv-source1
   agent_foo.sinks = hdfs-Cluster1-sink1 avro-forward-sink2
   agent_foo.channels = mem-channel-1 file-channel-2
 
-  # set channels for source
+  # 让source与两个channel相连接
   agent_foo.sources.avro-AppSrv-source1.channels = mem-channel-1 file-channel-2
 
-  # set channel for sinks
+  # 分别设定两个sink对应的channel
   agent_foo.sinks.hdfs-Cluster1-sink1.channel = mem-channel-1
   agent_foo.sinks.avro-forward-sink2.channel = file-channel-2
 
-  # channel selector configuration
-  agent_foo.sources.avro-AppSrv-source1.selector.type = multiplexing
-  agent_foo.sources.avro-AppSrv-source1.selector.header = State
-  agent_foo.sources.avro-AppSrv-source1.selector.mapping.CA = mem-channel-1
-  agent_foo.sources.avro-AppSrv-source1.selector.mapping.AZ = file-channel-2
-  agent_foo.sources.avro-AppSrv-source1.selector.mapping.NY = mem-channel-1 file-channel-2
-  agent_foo.sources.avro-AppSrv-source1.selector.default = mem-channel-1
+  # source的channel选择器配置
+  agent_foo.sources.avro-AppSrv-source1.selector.type = multiplexing                           # 选择器类型是多路复用，非复制
+  agent_foo.sources.avro-AppSrv-source1.selector.header = State                                # 读取event header中名字叫做State的属性值，以这个值作为分发的映射依据
+  agent_foo.sources.avro-AppSrv-source1.selector.mapping.CA = mem-channel-1                    # State=CA时，event发送到mem-channel-1上
+  agent_foo.sources.avro-AppSrv-source1.selector.mapping.AZ = file-channel-2                   # State=AZ时，event发送到file-channel-2上
+  agent_foo.sources.avro-AppSrv-source1.selector.mapping.NY = mem-channel-1 file-channel-2     # State=NY时，event发送到mem-channel-1和file-channel-2上
+  agent_foo.sources.avro-AppSrv-source1.selector.default = mem-channel-1                       # 如果State不等于上面配置的任何一个值，则event会发送到mem-channel-1上
 
-The selector checks for a header called "State". If the value is "CA" then its
-sent to mem-channel-1, if its "AZ" then it goes to file-channel-2 or if its
-"NY" then both. If the "State" header is not set or doesn't match any of the
-three, then it goes to mem-channel-1 which is designated as 'default'.
+上面配置中，选择器检查每个event中名为“State”的event header。 如果该值为“CA”，则将其发送到mem-channel-1，如果其为“AZ”，则将其发送到file-channel-2，或者如果其为“NY”则发送到两个channel上。 
+如果event header中没有“State”或者与前面三个中任何一个都不匹配，则event被发送到被设置为default的mem-channel-1上。
 
-The selector also supports optional channels. To specify optional channels for
-a header, the config parameter 'optional' is used in the following way:
+多路复用选择器还支持一个 ``optional`` 属性，看下面的例子：
 
 .. code-block:: properties
 
-  # channel selector configuration
+  # 以下是一个channel选择器的配置
   agent_foo.sources.avro-AppSrv-source1.selector.type = multiplexing
   agent_foo.sources.avro-AppSrv-source1.selector.header = State
-  agent_foo.sources.avro-AppSrv-source1.selector.mapping.CA = mem-channel-1
+  agent_foo.sources.avro-AppSrv-source1.selector.mapping.CA = mem-channel-1                          # CA被第一次映射到mem-channel-1
   agent_foo.sources.avro-AppSrv-source1.selector.mapping.AZ = file-channel-2
   agent_foo.sources.avro-AppSrv-source1.selector.mapping.NY = mem-channel-1 file-channel-2
-  agent_foo.sources.avro-AppSrv-source1.selector.optional.CA = mem-channel-1 file-channel-2
+  agent_foo.sources.avro-AppSrv-source1.selector.optional.CA = mem-channel-1 file-channel-2          # 关键看这行，State=CA的映射在上面本来已经指定到mem-channel-1了，这里又另外配置了两个channel
   agent_foo.sources.avro-AppSrv-source1.selector.mapping.AZ = file-channel-2
   agent_foo.sources.avro-AppSrv-source1.selector.default = mem-channel-1
 
-The selector will attempt to write to the required channels first and will fail
-the transaction if even one of these channels fails to consume the events. The
-transaction is reattempted on **all** of the channels. Once all required
-channels have consumed the events, then the selector will attempt to write to
-the optional channels. A failure by any of the optional channels to consume the
-event is simply ignored and not retried.
+.. hint:: “必需channel”的意思就是被选择器配置里精确匹配到的channel，上面例子里面除了 ``optional`` 那一行，剩下的四行映射里面，全都是“必需channel”；“可选channel”就是通过 ``optional`` 参数配置的映射。
 
-If there is an overlap between the optional channels and required channels for a
-specific header, the channel is considered to be required, and a failure in the
-channel will cause the entire set of required channels to be retried. For
-instance, in the above example, for the header "CA" mem-channel-1 is considered
-to be a required channel even though it is marked both as required and optional,
-and a failure to write to this channel will cause that
-event to be retried on **all** channels configured for the selector.
+通常选择器会尝试将匹配到的event写入指定的所有channel中，如果任何一个channel发生了写入失败的情况，就会导致整个事务的的失败，然后会在所有的channel上重试（不管某一个channel之前成功与否，只有所有channel
+都成功了才认为事务成功了）。一旦所有channel写入成功，选择器还会继续将event写入与之匹配的“可选channel”上，但是“可选channel”如果发生写入失败，选择器会忽略它。
 
-Note that if a header does not have any required channels, then the event will
-be written to the default channels and will be attempted to be written to the
-optional channels for that header. Specifying optional channels will still cause
-the event to be written to the default channels, if no required channels are
-specified. If no channels are designated as default and there are no required,
-the selector will attempt to write the events to the optional channels. Any
-failures are simply ignored in that case.
+如果“可选channel”与“必需channel”的channel有重叠（上面关于CA的两行配置就有相同的mem-channel-1），则认为该channel是必需的，这个mem-channel-1发生失败时会导致重试所有“必需channel”。上面例子中的mem-channel-1发生失败的话就会导致evnet在所有
+channel重试。
 
+.. hint:: 这里注意一下，CA这个例子中，“必需channel”失败会导致event在选择器为它配置的所有通道上重试，是因为第一段中说过 ``一旦所有channel写入成功，选择器还会继续将event写入与之匹配的“可选channel”上``，依据这个原则，再看CA的例子
+          必需的mem-channel-1失败后，重试且成功了，然后再把“可选channel”重试一遍，也就是mem-channel-1和file-channel-2
+
+如果一个event的header没有找到匹配的“必需channel”，则它会被发送到默认的channel，并且会尝试发送到与这个event对应的“可选channel”上。无必需，会发送到默认和可选；无必需无默认，还是会发送到可选，这种情况下所有失败都会被忽略。
 
 Flume Sources
 -------------
