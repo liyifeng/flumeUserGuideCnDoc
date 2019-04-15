@@ -1,9 +1,9 @@
 /** google begin */
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
 
-gtag('config', 'UA-138291760-1');
+  gtag('config', 'UA-132785326-2'); 
 /** google end */
 
 /** baidu begin */
