@@ -6,7 +6,6 @@
 #### 查阅地址
 [http://flume.liyifeng.org/](http://flume.liyifeng.org/)
 
-GITBOOK版本：[http://flume.liyifeng.net](http://flume.liyifeng.net) （不再更新）
 
 #### 译者
 liyifeng  
