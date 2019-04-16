@@ -75,7 +75,7 @@ pygments_style = None
 # a list of builtin themes.
 #
 #html_theme = 'alabaster'
-html_logo = 'images/flume-logo.png'
+html_logo = '_static/images/flume-logo.png'
 html_theme = "default"
 html_style = 'my_theme.css'
 html_copy_source = False
@@ -91,6 +91,8 @@ html_theme_options = {
     "sidebartextcolor": "#98dbdd"
 }
 html_js_files = ['bdtj.js',('https://www.googletagmanager.com/gtag/js?id=UA-132785326-2', {'async': 'async'})]
+html_last_updated_fmt = '%Y-%m-%d %H:%M:%S'
+html_show_sphinx = False
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
