@@ -13,9 +13,10 @@
   具体的例子来解释这些参数。（刚开始发现了文档中有参数错误的时候还想Apache提了issue，不过貌似文档的问题不像程序bug那样受到重视）
 
 
-### 文档在线查阅地址
-[http://flume.liyifeng.org/](http://flume.liyifeng.org/)
+### 文档查看
+在线：http://flume.liyifeng.org
 
+离线：http://flume.liyifeng.org/down
 
 ### 勘误
 
