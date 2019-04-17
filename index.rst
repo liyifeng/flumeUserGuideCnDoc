@@ -18,7 +18,11 @@
 Flume 1.8.0 User Guide中文翻译版
 ======================================
 
-本文档翻译自Flume官方的 `Flume 1.8 User Guide <http://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html>`_ ，查阅本文档前请先了解一下 `翻译约定 <translateAgreement.html>`_。
+译者语
+============
+本文档 `翻译版格式约定 <translateAgreement.html>`_ ，英文原版文档 `Flume 1.8 User Guide <http://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html>`_ 。
+
+在线查阅： http://flume.liyifeng.org
 
 简介
 ============
