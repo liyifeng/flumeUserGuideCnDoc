@@ -78,7 +78,7 @@ Event是Flume定义的一个数据流传输的最小单元。Agent就是一个Fl
 .. hint:: 学习Flume必须明白这几个概念，Event英文直译是事件，但是在Flume中表示数据传输的一个最小单位。参照下图可以看得出Agent就是Flume的一个部署实例，
           一个完整的Agent中包含了三个组件Source、Channel和Sink，很明显Source是指数据的来源和方式，Channel是一个数据的缓冲池，Sink定义了数据输出的方式和目的地。  
 
-.. figure:: _static/images/UserGuide_image00.png
+.. figure:: images/UserGuide_image00.png
    :align: center
    :alt: Agent component diagram
 
@@ -100,7 +100,7 @@ Flume可以设置多级Agent连接的方式传输Event数据。也支持扇入�
 
 其实他们就是想告诉你，你可以根据自己的业务需求来任意组合传输日志的Agent实例，引用一张后面章节的图，这就是一个扇入方式的Flume部署方式，前三个Agent的数据都汇总到一个Agent4上，最后由Agent4统一存储到HDFS。
 
-.. figure:: _static/images/UserGuide_image02.png
+.. figure:: images/UserGuide_image02.png
    :align: center
    :alt: 扇入、扇出展示
 
@@ -356,7 +356,7 @@ Flume支持以下比较流行的日志类型读取：
 
 .. hint:: 这一小节介绍了几种典型的Flume的多agent（图一图二）以及一个agent中多路输出（图三）等部署方式。
 
-.. figure:: _static/images/UserGuide_image03.png
+.. figure:: images/UserGuide_image03.png
    :align: center
    :alt: Two agents communicating over Avro RPC
 
@@ -367,7 +367,7 @@ Flume支持以下比较流行的日志类型读取：
 
 日志收集场景中比较常见的是数百个日志生产者发送数据到几个日志消费者agent上，然后消费者agent负责把数据发送到存储系统。例如从数百个web服务器收集的日志发送到十几个agent上，然后由十几个agent写入到HDFS集群。
 
-.. figure:: _static/images/UserGuide_image02.png
+.. figure:: images/UserGuide_image02.png
    :align: center
    :alt: A fan-in flow using Avro RPC to consolidate events in one place
 
@@ -381,7 +381,7 @@ Flume支持多路复用数据流到一个或多个目的地。这是通过使用
 
 .. hint:: 很容易理解，复制就是每个channel的数据都是完全一样的，都是完整的数据流集合。选择就是通过自定义一个分配机制，把数据流拆分到多个channel上。
 
-.. figure:: _static/images/UserGuide_image01.png
+.. figure:: images/UserGuide_image01.png
    :align: center
    :alt: A fan-out flow using a (multiplexing) channel selector
 

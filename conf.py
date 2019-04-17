@@ -75,7 +75,7 @@ pygments_style = None
 # a list of builtin themes.
 #
 #html_theme = 'alabaster'
-html_logo = '_static/images/flume-logo.png'
+html_logo = 'images/flume-logo.png'
 html_theme = "default"
 html_style = 'my_theme.css'
 html_copy_source = False
