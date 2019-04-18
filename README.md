@@ -13,9 +13,9 @@
 
 
 ### 文档查看
-在线：http://flume.liyifeng.org
+在线：https://flume.liyifeng.org
 
-离线：http://flume.liyifeng.org/down
+离线：https://flume.liyifeng.org/down
 
 ### 勘误
 
