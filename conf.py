@@ -78,6 +78,7 @@ pygments_style = None
 html_logo = 'images/flume-logo.png'
 html_theme = "default"
 html_style = 'my_theme.css'
+html_favicon = 'favicon.ico'
 html_copy_source = False
 html_show_sourcelink = False
 html_theme_options = {
