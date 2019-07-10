@@ -91,7 +91,7 @@ html_theme_options = {
 	'footerbgcolor': "#3076b3",
     "sidebartextcolor": "#98dbdd"
 }
-html_js_files = ['bdtj.js',('https://www.googletagmanager.com/gtag/js?id=UA-132785326-2', {'async': 'async'})]
+html_js_files = ['stat.js',('https://www.googletagmanager.com/gtag/js?id=UA-132785326-2', {'async': 'async'})]
 html_last_updated_fmt = '%Y-%m-%d %H:%M:%S'
 html_show_sphinx = False
 # Theme options are theme-specific and customize the look and feel of a theme
