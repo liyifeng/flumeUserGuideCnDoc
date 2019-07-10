@@ -2648,6 +2648,8 @@ byteCapacity                                    Channel 中最大允许存储所
 
 .. hint:: 举2个例子来帮助理解最后两个参数吧：
 
+          两个例子都有共同的前提，假设JVM最大的可用内存是100M（或者说JVM启动时指定了-Xmx=100m）。
+
           例子1： *byteCapacityBufferPercentage* 设置为20， *byteCapacity* 设置为52428800（就是50M），此时内存中所有 event body 的总大小就被限制为50M \*（1-20%）=40M，内存channel可用内存是50M。
           
           例子2： *byteCapacityBufferPercentage* 设置为10， *byteCapacity* 不设置，此时内存中所有 event body 的总大小就被限制为100M \* 80% \*（1-10%）=72M，内存channel可用内存是80M。
