@@ -98,7 +98,7 @@ Flume可以设置多级Agent连接的方式传输Event数据。也支持扇入�
 
 .. hint:: 这里必须解释一下，第一句的意思是可以部署多个Agent组成一个数据流的传输链。第二句要知道扇入（多对一）和扇出（一对多）的概念，就是说Agent可以将数据流发到多个下级Agent，也可以从多个Agent发到一个Agent中。
 
-其实他们就是想告诉你，你可以根据自己的业务需求来任意组合传输日志的Agent实例，引用一张后面章节的图，这就是一个扇入方式的Flume部署方式，前三个Agent的数据都汇总到一个Agent4上，最后由Agent4统一存储到HDFS。
+          其实他们就是想告诉你，你可以根据自己的业务需求来任意组合传输日志的Agent实例，引用一张后面章节的图，这就是一个扇入方式的Flume部署方式，前三个Agent的数据都汇总到一个Agent4上，最后由Agent4统一存储到HDFS。
 
 .. figure:: images/UserGuide_image02.png
    :align: center
