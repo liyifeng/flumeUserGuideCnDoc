@@ -25,9 +25,9 @@ Flume 1.8.0 User Guide中文翻译版
 
 英文原版文档 `Flume 1.8 User Guide <http://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html>`_ 
 
-在线查阅： https://flume.liyifeng.org   
+在线查阅： `https://flume.liyifeng.org <https://flume.liyifeng.org?fromDoc>`_   
 
-离线下载：https://flume.liyifeng.org/down
+离线下载：`https://flume.liyifeng.org/down <https://flume.liyifeng.org/down?docDown>`_
 
 简介
 ============
