@@ -57,7 +57,7 @@ Apache Flume是Apache软件基金会（ASF）的顶级项目
 #. 硬盘空间 - 足够的硬盘用来配置Channels 和 Sinks
 #. 目录权限 - Agent用来读写目录的权限
 
-.. hint:: 唯一有用的就是第一个，Java1.8以上的运行环境，其余都是废话。我找出了最近几个Flume版本对JRE的依赖，如下表：
+.. hint:: 唯一有用的就是第一行，其余都是废话。我找出了最近几个Flume版本对JRE的依赖，如下表：
 
 ========================================   =====================================================================================
 Flume版本                                   依赖的JRE版本   
@@ -850,13 +850,13 @@ durableSubscriptionName     --           用于标识持久订阅的名称。持
 
 关于转换器
 '''''''''''
-JMS source可以配置插入式的转换器，尽管默认的转换器已经足够应付大多数场景了，默认的转换器可以把字节、文本、对象消息转换为FlumeEvent。不管哪种类型消息中的属性都会作为headers被添加到FlumeEvent中。 
+JMS source可以配置插入式的转换器，尽管默认的转换器已经足够应付大多数场景了，默认的转换器可以把字节、文本、对象消息转换为event。不管哪种类型消息中的属性都会作为headers被添加到event中。 
 
-字节消息：JMS消息中的字节会被拷贝到FlumeEvent的body中，注意转换器处理的单个消息大小不能超过2GB。 
+字节消息：JMS消息中的字节会被拷贝到event的body中，注意转换器处理的单个消息大小不能超过2GB。 
 
-文本消息：JMS消息中的文本会被转为byte array拷贝到FlumeEvent的body中。默认的编码是UTF-8，可自行配置编码。 
+文本消息：JMS消息中的文本会被转为byte array拷贝到event的body中。默认的编码是UTF-8，可自行配置编码。 
 
-对象消息：对象消息会被写出到封装在ObjectOutputStream中的ByteArrayOutputStream里面，得到的array被复制到FlumeEvent的body。
+对象消息：对象消息会被写出到封装在ObjectOutputStream中的ByteArrayOutputStream里面，得到的array被复制到event的body。
 
 
 配置范例：   
@@ -913,7 +913,7 @@ decodeErrorPolicy         ``FAIL``        当从文件读取时遇到不可解�
                                           ``FAIL`` ：抛出异常，解析文件失败；
                                           ``REPLACE`` ：替换掉这些无法解析的字符，通常是用U+FFFD；
                                           ``IGNORE`` ：忽略无法解析的字符。
-deserializer              ``LINE``        指定一个把文件中的数据行解析成FlumeEvent的解析器。默认是把每一行当做一个event进行解析，所有解析器必须实现EventDeserializer.Builder接口
+deserializer              ``LINE``        指定一个把文件中的数据行解析成event的解析器。默认是把每一行当做一个event进行解析，所有解析器必须实现EventDeserializer.Builder接口
 deserializer.*                            解析器的相关属性，根据解析器不同而不同
 bufferMaxLines            --              （已废弃）
 bufferMaxLineLength       5000            （已废弃）每行的最大长度。改用 *deserializer.maxLineLength* 代替
@@ -949,7 +949,7 @@ LINE
 属性                             默认值          解释
 ==============================  ==============  ==========================================================
 deserializer.maxLineLength      2048            每个event数据所包含的最大字符数，如果一行文本字符数超过这个配置就会被截断，剩下的字符会出现再后面的event数据里
-deserializer.outputCharset      UTF-8           解析FlumeEvent所使用的编码
+deserializer.outputCharset      UTF-8           解析event所使用的编码
 ==============================  ==============  ==========================================================
 
 .. hint:: *deserializer.maxLineLength* 的默认值是2048，这个数值对于日志行来说有点小，如果实际使用中日志每行字符数可能超过2048，超出的部分会被截断，千万记得根据自己的日志长度调大这个值。
@@ -1260,7 +1260,7 @@ JAAS 文件配置示例。有关其内容的参考，请参阅Kafka文档 `SASL 
 NetCat TCP Source
 ~~~~~~~~~~~~~~~~~
 
-NetCat TCP Source十分像nc -k -l [host] [port]这个命令，监听一个指定的端口，把从该端口收到的TCP协议的文本数据按行转换为FlumeEvent，它能识别的是带换行符的文本数据，同其他Source一样，解析成功的FlumeEvent数据会发送到channel中。
+NetCat TCP Source十分像nc -k -l [host] [port]这个命令，监听一个指定的端口，把从该端口收到的TCP协议的文本数据按行转换为event，它能识别的是带换行符的文本数据，同其他Source一样，解析成功的event数据会发送到channel中。
 
 .. hint:: 常见的系统日志都是逐行输出的，Flume的各种Source接收数据也基本上以行为单位进行解析和处理。不论是 `NetCat TCP Source`_ ，还是其他的读取文本类型的Source（ `Spooling Directory Source`_ 、 `Taildir Source`_ 、 `Exec Source`_ 等）也都是一样的。
 
@@ -1296,7 +1296,7 @@ NetCat UDP Source
 ~~~~~~~~~~~~~~~~~
 
 看名字也看得出，跟NetCat TCP Source是一对亲兄弟，区别是监听的协议不同。NetCat UDP Source就像是 nc -u -k -l [host] [port]命令一样，
-监听一个端口然后接收来自于这个端口上UDP协议发送过来的文本内容，逐行转换为FlumeEvent发送到channel。
+监听一个端口然后接收来自于这个端口上UDP协议发送过来的文本内容，逐行转换为event发送到channel。
 
 必需的参数已用 **粗体** 标明。      
 
@@ -1307,7 +1307,7 @@ NetCat UDP Source
 **type**             --           组件名，这个是：``netcatudp``
 **bind**             --           要监听的 hostname 或者IP地址
 **port**             --           监听的端口
-remoteAddressHeader  --           UDP消息源地址（或IP）被解析到FlumeEvent的header里面时所使用的key名称
+remoteAddressHeader  --           UDP消息源地址（或IP）被解析到event的header里面时所使用的key名称
 selector.type        replicating  可选值：``replicating`` 或 ``multiplexing`` ，分别表示： 复制、多路复用
 selector.*                        channel选择器的相关属性，具体属性根据设定的 *selector.type* 值不同而不同
 interceptors         --           该source所使用的拦截器，多个用空格分开
@@ -1330,7 +1330,7 @@ interceptors.*                    拦截器相关的属性配
 Sequence Generator Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-这个Source是一个序列式的FlumeEvent生成器，从它启动就开始生成，总共会生成totalEvents个。它并不是一个日志收集器，它通常是用来测试用的。它在发送失败的时候会重新发送失败的Event到channel，
+这个Source是一个序列式的event生成器，从它启动就开始生成，总共会生成totalEvents个。它并不是一个日志收集器，它通常是用来测试用的。它在发送失败的时候会重新发送失败的Event到channel，
 保证最终发送到channel的唯一Event数量一定是 *totalEvents* 个。
 必需的参数已用 **粗体** 标明。    
 
@@ -1346,7 +1346,7 @@ selector.*      replicating      channel选择器的相关属性，具体属性�
 interceptors    --               该source所使用的拦截器，多个用空格分开
 interceptors.*                   拦截器相关的属性配
 batchSize       1                每次请求向channel发送的 event 数量
-totalEvents     Long.MAX_VALUE   这个Source会发出的FlumeEvent总数，这些FlumeEvent是唯一的
+totalEvents     Long.MAX_VALUE   这个Source会发出的event总数，这些event是唯一的
 ==============  ===============  ========================================
 
 配置范例：   
@@ -1412,7 +1412,7 @@ Multiport Syslog TCP Source
 **type**              --                组件名，这个是：``multiport_syslogtcp``
 **host**              --                要监听的hostname或者IP地址
 **ports**             --                一个或多个要监听的端口，多个用空格分开
-eventSize             2500              解析成FlumeEvent的每行数据的最大字节数
+eventSize             2500              解析成event的每行数据的最大字节数
 keepFields            none              是否保留syslog消息头中的一些属性到event中，可选值 ``all`` 、``none`` 或自定义指定保留的字段，如果设置为all，则会保留Priority， Timestamp 和Hostname三个属性到event中。
                                         也支持单独指定保留哪些属性（支持的属性有：priority， version， timestamp， hostname），用空格分开即可。现在已经不建议使用 ``true`` 和 ``false`` ，建议改用 ``all`` 和 ``none`` 了。
 portHeader            --                如果配置了这个属性值，端口号会被存到每个event的header里面用这个属性配置的值当key。这样就可以在拦截器或者channel选择器里面根据端口号来自定义路由event的逻辑。
@@ -1541,7 +1541,7 @@ HTTP请求中设置编码必须是通过Content type来设置，application/json
 
 BlobHandler
 '''''''''''
-默认情况下HTTPSource会把json处理成FlumeEvent。作为一个补充的选项BlobHandler 不仅支持返回请求中的参数也包含其中的二进制数据，比如PDF文件、jpg文件等。这种可以接收附件的处理器不适合处理非常大的文件，因为这些文件都是缓冲在内存里面的。
+默认情况下HTTPSource会把json处理成event。作为一个补充的选项BlobHandler 不仅支持返回请求中的参数也包含其中的二进制数据，比如PDF文件、jpg文件等。这种可以接收附件的处理器不适合处理非常大的文件，因为这些文件都是缓冲在内存里面的。
 
 =====================  ==================  ============================================================================
 属性                    默认值               解释
@@ -1749,7 +1749,7 @@ HDFS Sink
 %[FQDN]          agent实例所在主机的规范hostname
 ===============  =================================================
 
-注意，%[localhost], %[IP] and %[FQDN]这三个转义符实际上都是用java的API来获取的，在一些网络环境下可能会获取失败。
+注意，%[localhost], %[IP] 和 %[FQDN]这三个转义符实际上都是用java的API来获取的，在一些网络环境下可能会获取失败。
 
 正在打开的文件会在名称末尾加上“.tmp”的后缀。文件关闭后，会自动删除此扩展名。这样容易排除目录中的那些已完成的文件。
 必需的参数已用 **粗体** 标明。      
@@ -2025,7 +2025,8 @@ connect-timeout              20000        第一次连接请求（握手）的�
 request-timeout              20000        请求超时时间（毫秒）
 reset-connection-interval    none         重置连接到下一跳之前的时间量（秒）。 这将强制 Thrift Sink 重新连接到下一跳。 允许接收器在添加了新的主机时连接到硬件负载均衡器后面的主机，而无需重新启动 agent。
 ssl                          false        设置为 true 表示接收器开启 SSL。下面的 *truststore* 、 *truststore-password* 、 *truststore-type* 就是开启 SSL 后使用的参数
-truststore                   --           自定义 Java 信任库文件的路径。 Flume 使用此文件中的证书颁发机构信息来确定是否应该信任远程 Avro Source 的 SSL 身份验证凭据。 如果未指定，将使用缺省 Java JSSE 证书颁发机构文件（通常为 Oracle JRE 中的“jssecacerts”或“cacerts”）。
+truststore                   --           自定义 Java 信任库文件的路径。 Flume 使用此文件中的证书颁发机构信息来确定是否应该信任远程 Avro Source 的 SSL 身份验证凭据。 
+                                          如果未指定，将使用缺省 Java JSSE 证书颁发机构文件（通常为 Oracle JRE 中的“jssecacerts”或“cacerts”）。
 truststore-password          --           上面配置的信任库的密码
 truststore-type              JKS          Java 信任库的类型。可以配成 ``JKS`` 或者其他支持的 Java 信任库类型
 exclude-protocols            SSLv3        要排除的以空格分隔的 SSL/TLS 协议列表
@@ -2730,7 +2731,7 @@ Kafka channel可以用于多种场景：
 **kafka.bootstrap.servers**              --                          channel使用的Kafka集群的实例列表，可以是实例的部分列表。但是更建议至少两个用于高可用支持。格式为hostname:port，多个用逗号分隔
 kafka.topic                              flume-channel               channel使用的Kafka topic
 kafka.consumer.group.id                  flume                       channel 用于向 Kafka 注册的消费者群组ID。 多个 channel 必须使用相同的 topic 和 group，以确保当一个Flume实例发生故障时，另一个实例可以获取数据。请注意，使用相同组ID的非channel消费者可能会导致数据丢失。
-parseAsFlumeEvent                        true                        是否以avro基准的 FlumeEvent 格式在channel中存储event。
+parseAsFlumeEvent                        true                        是否以avro基准的 Flume Event 格式在channel中存储event。
                                                                      如果是Flume的Source向channel的topic写入event则应设置为true；
                                                                      如果其他生产者也在向channel的topic写入event则应设置为false。
                                                                      通过使用 flume-ng-sdk 中的 *org.apache.flume.source.avro.AvroFlumeEvent* 可以在Kafka之外解析出Flume source的信息。
@@ -3813,7 +3814,7 @@ log4j使用「失败退避」方式的log4j.properties配置范例：
   log4j.logger.org.example.MyClass = DEBUG,flume
   #...
 
-.. hint:: 这种规退机制在其他组件中有过多次应用，比如：`Spooling Directory Source`_ 中的 *maxBackoff* 属性的功能是一样的。
+.. hint:: 这种退避机制在其他组件中有过多次应用，比如：`Spooling Directory Source`_ 中的 *maxBackoff* 属性的功能是一样的。
 
 安全
 ========
@@ -4128,34 +4129,34 @@ Flume拓扑设计
 HDFS
 ~~~~
 
-Flume目前支持HDFS 0.20.2 and 0.23版本。
+Flume目前支持HDFS 0.20.2 和 0.23版本。
 
 AVRO
 ~~~~
 
-待完善。（不是没翻译，是原文档上就没有(/ □ \)）
+待完善。（不是没翻译，是原文档上就没有）
 
 Additional version requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-待完善。（不是没翻译，是原文档上就没有(/ □ \)）
+待完善。（不是没翻译，是原文档上就没有）
 
 Tracing
 -------
 
-待完善。（不是没翻译，是原文档上就没有(/ □ \)）
+待完善。（不是没翻译，是原文档上就没有）
 
 More Sample Configs
 -------------------
 
-待完善。（不是没翻译，是原文档上就没有(/ □ \)）
+待完善。（不是没翻译，是原文档上就没有）
 
 内置组件
 =================
 
 .. hint:: 基本上你能想到的常见的数据来源（source）与目的地（sink）Flume都帮我们实现了，下表是Flume自带的一些组件和它们的别名，这个别名在实际使用的时候非常方便。看一遍差不多也就记住了，记不住也没关系，知道大概有哪些就行了。
 
-.. hint:: 这些别名配置是不区分大小写的。
+.. hint:: 别名不区分大小写。
 
 ============================================================  ======================  ====================================================================
 组件接口                                                       别名                    实现类
