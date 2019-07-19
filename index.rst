@@ -154,7 +154,7 @@ bin目录下的flume-ng是flume的启动脚本，启动时需要指定agent的�
 
 一个简单的Hello World
 ~~~~~~~~~~~~~~~~~~~~~~~
-这里给出了一个配置文件的例子，部署一个单节点的Flume，这个配置是让你自己生成Event数据然后Flume会把它们输出到console上。
+这里给出了一个配置文件的例子，部署一个单节点的Flume，这个配置是让你自己生成Event数据然后Flume会把它们输出到控制台上。
 
 .. hint:: 下面的配置文件中，source使用的是NetCat TCP Source，这个Source在后面会有专门的一节来介绍，简单说就是监听本机上某个端口上接收到的TCP协议的消息，收到的每行内容都会解析封装成一个Event，然后发送到channel；
           sink使用的是Logger Sink，这个sink可以把Event输出到控制台；
@@ -179,7 +179,7 @@ bin目录下的flume-ng是flume的启动脚本，启动时需要指定agent的�
   a1.sinks.k1.type = logger         # sink使用的是Logger Sink，这个配的也是别名
 
   # 配置agent a1的channel c1的属性，channel是用来缓冲Event数据的
-  a1.channels.c1.type = memory                #channel的类型是channel，使用内存来缓冲数据
+  a1.channels.c1.type = memory                #channel的类型是内存channel，很明显这个channel是使用内存来缓冲数据
   a1.channels.c1.capacity = 1000
   a1.channels.c1.transactionCapacity = 100
 
