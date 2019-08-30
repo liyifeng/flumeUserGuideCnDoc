@@ -52,7 +52,7 @@ Apache Flume是Apache软件基金会（ASF）的顶级项目
 系统要求
 -------------------
 
-#. JAVA运行环境 - Java 1.8或更高版本
+#. Java运行环境 - Java 1.8或更高版本
 #. 内存 - 足够的内存 用来配置Souuces、Channels和Sinks
 #. 硬盘空间 - 足够的硬盘用来配置Channels 和 Sinks
 #. 目录权限 - Agent用来读写目录的权限
@@ -84,7 +84,7 @@ Event是Flume定义的一个数据流传输的最小单元。Agent就是一个Fl
 
 Source消耗由外部（如Web服务器）传递给它的Event。外部以Flume Source识别的格式向Flume发送Event。例如，Avro Flume Source可接收从Avro客户端（或其他FlumeSink）接收Avro Event。用Thrift Flume Source也可以实现类似的流程，接收的Event数据可以是任何语言编写的只要符合Thrift协议即可。
 
-当Source接收Event时，它将其存储到一个或多个channel。该channel是一个被动存储器，可以保持Event直到它被Sink消耗。『文件channel』就是一个例子 - 它由本地文件系统支持。sink从channel中移除Event并将其放入外部存储库（如HDFS（通过Flume HDFS Sink））或将其转发到流中下一个Flume Agent（下一跳）的Flume Source。
+当Source接收Event时，它将其存储到一个或多个channel。该channel是一个被动存储器，可以保持Event直到它被Sink消耗。『文件channel』就是一个例子 - 它由本地文件系统支持。sink从channel中移除Event并将其放入外部存储库（如HDFS，通过 Flume的 `HDFS Sink`_ 实现）或将其转发到流中下一个Flume Agent（下一跳）的Flume Source。
 
 Agent中的source和sink与channel存取Event是异步的。
 
@@ -1317,7 +1317,8 @@ interceptors         --           该source所使用的拦截器，多个用空�
 interceptors.*                    拦截器相关的属性配
 ===================  ===========  ===========================================
 
-.. hint:: remoteAddressHeader这个参数在官方的英文文档中并没有任何描述，去看了Flume1.8的 *org.apache.flume.source.NetcatUdpSource* 源码，上面表格里面的解释是我自己加的。
+..
+  .. hint:: remoteAddressHeader这个参数在官方的英文文档中并没有任何描述，去看了Flume1.8的 *org.apache.flume.source.NetcatUdpSource* 源码，上面表格里面的解释是我自己加的。
 
 配置范例：   
 
@@ -1558,7 +1559,7 @@ Stress Source
 
 StressSource 是一个内部负载生成Source的实现， **对于压力测试非常有用** 。可以配置每个Event的大小（headers为空）、也可以配置总共发送Event数量以及发送成功的Event最大数量。
 
-.. hint:: 这个Source跟Sequence Generator Source差不多，都是用来测试用的。
+.. hint:: 它跟 `Sequence Generator Source`_ 差不多，都是用来测试用的。
 
 必需的参数已用 **粗体** 标明。      
 
@@ -1797,8 +1798,11 @@ hdfs.roundUnit          second        向下舍入的单位，可选值： ``sec
 hdfs.timeZone           Local Time    解析存储目录路径时候所使用的时区名，例如：America/Los_Angeles、Asia/Shanghai
 hdfs.useLocalTimeStamp  false         使用日期时间转义符时是否使用本地时间戳（而不是使用 Event header 中自带的时间戳）
 hdfs.closeTries         0             开始尝试关闭文件时最大的重命名文件的尝试次数（因为打开的文件通常都有个.tmp的后缀，写入结束关闭文件时要重命名把后缀去掉）。
+                                      
                                       如果设置为1，Sink在重命名失败（可能是因为 NameNode 或 DataNode 发生错误）后不会重试，这样就导致了这个文件会一直保持为打开状态，并且带着.tmp的后缀；
+                                      
                                       如果设置为0，Sink会一直尝试重命名文件直到成功为止；
+                                      
                                       关闭文件操作失败时这个文件可能仍然是打开状态，这种情况数据还是完整的不会丢失，只有在Flume重启后文件才会关闭。
 hdfs.retryInterval      180           连续尝试关闭文件的时间间隔（秒）。 每次关闭操作都会调用多次 RPC 往返于 Namenode ，因此将此设置得太低会导致 Namenode 上产生大量负载。 如果设置为0或更小，则如果第一次尝试失败，将不会再尝试关闭文件，并且可能导致文件保持打开状态或扩展名为“.tmp”。
 serializer              TEXT          Event 转为文件使用的序列化器。其他可选值有： ``avro_event`` 或其他 ``EventSerializer.Builderinterface`` 接口的实现类的全限定类名。
@@ -3514,7 +3518,7 @@ matching               --           要删除的header名的正则表达式，�
 添加唯一ID拦截器
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-此拦截器在所有截获的Event上设置通用唯一标识符。 比如UUID可以是b5755073-77a9-43c1-8fad-b7a586fc1b97，它是一个128-bit的值。
+此拦截器在所有截获的Event上设置通用唯一标识符。 比如UUID可以是b5755073-77a9-43c1-8fad-b7a586f89757，它是一个128-bit的值。
 
 Event如果没有可用的应用级唯一ID，就可以考虑使用添加唯一ID拦截器自动为Event分配UUID。 Event数据只要进入Flume网络中就给其分配一个UUID是非常重要的，Event进入Flume网络的第一个节点通常就是Flume的第一个source。
 这样可以在Flume网络中进行复制和重新传输以及Event的后续重复数据删除可以实现高可用性和高性能。 如果在应用层有唯一ID的话要比这种自动生成UUID要好一些，因为应用层分配的ID能方便我们在后续的数据存储中心对Event进行集中的更新和删除等操作。
