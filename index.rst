@@ -498,8 +498,8 @@ Flume支持多路复用数据流到一个或多个目的地。这是通过使用
 .. code-block:: properties
 
   # 列出当前配置所有的source、sink和channel
-  agent_foo.sources = avro-AppSrv-source1 exec-tail-source2            # 该agent中有2个sourse，分别是：avro-AppSrv-source1 和exec-tail-source2
-  agent_foo.sinks = hdfs-Cluster1-sink1 avro-forward-sink2             # 该agent中有2个sink，分别是：avro-AppSrv-source1 和exec-tail-source2
+  agent_foo.sources = avro-AppSrv-source1 exec-tail-source2            # 该agent中有2个sourse，分别是：avro-AppSrv-source1 和 exec-tail-source2
+  agent_foo.sinks = hdfs-Cluster1-sink1 avro-forward-sink2             # 该agent中有2个sink，分别是：hdfs-Cluster1-sink1 和 avro-forward-sink2 
   agent_foo.channels = mem-channel-1 file-channel-2                    # 该agent中有2个channel，分别是：mem-channel-1 file-channel-2 
 
   # 这里是第一个流的配置
