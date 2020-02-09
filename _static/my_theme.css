@@ -13,7 +13,7 @@ div.body {
     background-color: #e6eef3;
 }
 
-.admonition.hint > .first.admonition-title {
+.admonition.hint > p.admonition-title {
 	color: #3884ff;
 }
 
