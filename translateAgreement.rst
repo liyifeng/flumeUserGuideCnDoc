@@ -37,6 +37,6 @@ Gitee  ： https://gitee.com/lief/flumeUserGuideCN
 
 译者
 -----------------------
-liyifeng
+`liyifeng <https://www.liyifeng.org>`_
 
 
