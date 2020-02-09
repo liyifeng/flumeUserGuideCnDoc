@@ -16,3 +16,8 @@ div.body {
 .admonition.hint > .first.admonition-title {
 	color: #3884ff;
 }
+
+/* 为了适配sphinx2.3.1版本表格默认居中的问题 */
+table.align-default{
+	margin-left: 0;
+}
