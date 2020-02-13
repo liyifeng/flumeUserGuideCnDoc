@@ -1,4 +1,4 @@
-var myVersion = 17 ;
+var myVersion = 18 ;
 
 /** google begin */
   window.dataLayer = window.dataLayer || [];
