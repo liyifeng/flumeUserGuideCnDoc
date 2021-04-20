@@ -5,13 +5,14 @@
 
 - 本文档翻译自官方手册 `Flume 1.9 User Guide <http://flume.apache.org/releases/content/1.9.0/FlumeUserGuide.html>`_ ，之前的Flume 1.8文档的翻译版在此 `《Flume 1.8用户手册中文版》 <flume1.8.html>`_ 。
 
+- 文档的段落结构与官方文档完全一致；
+
 - 毕竟是官方的手册，为了不把官方文档内容改的面目全非，加入了很多批注，不方便加批注的地方就加例子，有些参数光凭文档不能完全理解，译者参考源码理解作者的意图之后再用直白的话表述出来。
+
+.. hint:: 文档中所有这种蓝色的提示框中的内容都是译者后加的，还有很多掺杂在参数解析、配置范例的注释和大多数的括号中。
 
 - 更正了一些小错误。比如NetCat UDP Source的 *remoteAddressHeader* 属性没有描述、Thrift Sink的参数reset-connection-interval 写成了connection-reset-interval，Hive Sink遗漏round参数等等
 
-.. hint:: 所有这种蓝色的提示框中的内容都是译者后加的，还有很多掺杂在参数解析、配置范例的注释和大多数的括号中。
-
-- 文档的段落结构与官方文档完全一致；
 - 基本上涉及到的专属名词都没有进行翻译，比如：source、channel、sink、event等，大部分章节的标题也是一样，都是使用原来的英文标题，这样方便进行中英对照查找；
 
 
